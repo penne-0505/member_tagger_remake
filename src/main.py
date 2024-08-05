@@ -1,4 +1,5 @@
 import asyncio
+from dataclasses import dataclass
 import datetime
 import os
 
@@ -95,6 +96,14 @@ client = Client()
 tree = discord.app_commands.CommandTree(client)
 
 
+@dataclass
+class Tag:
+    guild_id: int = None
+    thread_id: int = None
+    users: list[discord.User] = None
+    deadline: datetime.datetime = None
+
+
 @tree.command(name='ping', description='for testng')
 async def ping(interaction: discord.Interaction):
     await interaction.response.send_message('pong')
@@ -106,9 +115,59 @@ async def change_notify_freq(interaction: discord.Interaction):
 @tree.command(name='tag', description='ユーザーを指定したスレッドにタグ付けします')
 async def tag(interaction: discord.Interaction):
     await interaction.response.send_message(view=TagView1())
-    async def callback(interaction: discord.Interaction, selected_threads: list[discord.Thread], selected_users: list[discord.User]):
+    async def tag_callback(interaction: discord.Interaction, selected_thread: discord.Thread, selected_users: list[discord.User]):
         # これをview_managerから呼び出して、ここで処理を書く
         pass
+
+@tree.command(name='untag', description='ユーザーからタグ付けを解除します')
+async def untag(interaction: discord.Interaction):
+    await interaction.response.send_message(view=UntagView1())
+    async def untag_callback(interaction: discord.Interaction, selected_thread: discord.Thread, selected_users: list[discord.User]):
+        # これをview_managerから呼び出して、ここで処理を書く
+        pass
+
+@tree.command(name='get_threads_by_user', description='指定したユーザーがタグ付けされているスレッドを取得します')
+async def get_threads_by_user(interaction: discord.Interaction):
+    await interaction.response.send_message(view=GetThreadsView1())
+    async def get_threads_callback(interaction: discord.Interaction, selected_user: discord.User):
+        # これをview_managerから呼び出して、ここで処理を書く
+        pass
+
+@tree.command(name='get_users_by_thread', description='指定したスレッドにタグ付けされているユーザーを取得します')
+async def get_users_by_thread(interaction: discord.Interaction):
+    await interaction.response.send_message(view=GetUsersView1())
+    async def get_users_callback(interaction: discord.Interaction, selected_thread: discord.Thread):
+        # これをview_managerから呼び出して、ここで処理を書く
+        pass
+
+@tree.command(name='get_all', description='全てのタグを取得します')
+async def get_all(interaction: discord.Interaction):
+    await interaction.response.send_message(view=GetAllView1())
+    async def get_all_callback(interaction: discord.Interaction):
+        # これをview_managerから呼び出して、ここで処理を書く
+        pass
+
+@tree.command(name='toggle_notification', description='通知のON/OFFを切り替えます')
+async def toggle_notification(interaction: discord.Interaction):
+    await interaction.response.send_message(view=ToggleNotificationView1())
+    async def toggle_notification_callback(interaction: discord.Interaction):
+        # これをview_managerから呼び出して、ここで処理を書く
+        pass
+
+@tree.command(name='help', description='ヘルプを表示します')
+async def help(interaction: discord.Interaction):
+    await interaction.response.send_message(view=HelpView1())
+    async def help_callback(interaction: discord.Interaction):
+        # これをview_managerから呼び出して、ここで処理を書く
+        pass
+
+@tree.command(name='invite_link', description='招待リンクを表示します')
+async def invite_link(interaction: discord.Interaction):
+    await interaction.response.send_message(view=InviteLinkView1())
+    async def invite_link_callback(interaction: discord.Interaction):
+        # これをview_managerから呼び出して、ここで処理を書く
+        pass
+
 
 if __name__ == '__main__':
     client.run(os.getenv('DISCORD_BOT_TOKEN_MT'))
