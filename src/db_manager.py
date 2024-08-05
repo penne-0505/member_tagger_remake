@@ -1,4 +1,5 @@
 import asyncio
+from dataclasses import dataclass
 import datetime
 import os
 
@@ -7,6 +8,7 @@ import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
 
+from main import Tag
 import utils as utils
 
 
@@ -70,123 +72,125 @@ class DBManager(metaclass=utils.Singleton):
         return
 
 
+'''
+### db architecture
+
+db = {
+    'users': {
+        (user_id: int): {
+            'name': (str),
+            'notification': (bool),
+            'tasks': {
+                'used_ids': [(task_id: str)],
+                (task_id: str): {
+                    'content': (str),
+                }
+                ...
+            },
+            'tags': {
+                (guild_id: int): {
+                    (thread_id: int): (deadline: datetime.datetime), # deadlineの実際の型はtimestamp
+                }
+            }
+        }
+        ...
+    }
+}
+
+### Tag class
+
+Tag: 
+    guild_id: int
+    thread_id: int
+    users: list[discord.User]
+    deadline: datetime.datetime
+'''
+
+
 class TagManager:
     def __init__(self):
         self.db_manager = DBManager()
     
-    def set_user(self, user_id: int, user_name: str):
-        # ユーザーが登録されていなかった場合、ユーザーを登録
-        if not self.db_manager.get('users', str(user_id)):
-            self.db_manager.set('users', str(user_id), {'name': user_name, 'notification': True, 'threads': {}, 'tasks': {}})
-        return
+    def add_tag(self, tag: Tag):
+        for user in tag.users:
+            user_id = user.id
+            user_data = self.db_manager.get('users', str(user_id))
+            user_data['tags'][str(tag.guild_id)][str(tag.thread_id)] = tag.deadline
+            self.db_manager.update('users', str(user_id), user_data)
     
-    def set_users(self, users: list[discord.User]):
-        for user in users:
-            self.set_user(user.id, user.name) if not self.db_manager.get('users', user.id) else None
-        return
+    def remove_tag(self, tag: Tag):
+        for user in tag.users:
+            user_id = user.id
+            user_data = self.db_manager.get('users', str(user_id))
+            user_data['tags'][str(tag.guild_id)].pop(str(tag.thread_id))
+            self.db_manager.update('users', str(user_id), user_data)
     
-    def set_thread(self, user_id: int, guild_id: int, thread_id: int, deadline: datetime.datetime):
-        # すでにスレッドが登録されていた場合は何もしない
-        if thread_id in (self.db_manager.get('users', user_id))['threads']:
-            return
-        else:
-            # スレッドが登録されていなかった場合、スレッドを登録
-            self.db_manager.update('users', user_id, {f'threads.{guild_id}.{thread_id}': deadline})
+    def get_tags(self, user: discord.User):
+        user_data = self.db_manager.get('users', str(user.id))
+        return user_data['tags']
     
-    def set_threads(self, user_id: int, threads: list[dict]):
-        '''
-        threads dict must be like:
-        [
-            {
-                guild_id: {
-                    thread_id: deadline
-                }
-            }
-            ...
-        ]
-        '''
-        for thread in threads:
-            for guild_id in thread:
-                for thread_id, deadline in thread[guild_id].items():
-                    self.set_thread(user_id, guild_id, thread_id, deadline)
+    def update_tag(self, tag: Tag):
+        for user in tag.users:
+            user_id = user.id
+            user_data = self.db_manager.get('users', str(user_id))
+            user_data['tags'][str(tag.guild_id)][str(tag.thread_id)] = tag.deadline
+            self.db_manager.update('users', str(user_id), user_data)
     
-    def set_tasks(self, user_id: int, tasks: dict):
-        # タスクを更新
-        self.db_manager.update('users', user_id, {'tasks': tasks})
-        return
+    def add_user(self, user: discord.User):
+        user_data = {
+            'name': user.name,
+            'notification': True,
+            'tasks': {},
+            'tags': {}
+        }
+        self.db_manager.set('users', str(user.id), user_data)
     
-    def set_deadline(self, user_id: int, guild_id: int, thread_id: int, deadline: datetime.datetime):
-        # スレッドの締切日時を更新
-        self.db_manager.update('users', user_id, {f'threads.{guild_id}.{thread_id}': deadline})
-        return
+    def remove_user(self, user: discord.User):
+        self.db_manager.delete('users', str(user.id))
     
-    # このguildsは、このbotが参加しているguildを登録しておくもので、この中にthreadの情報は入れない
-    def set_guild(self, guild_id: int):
-        # ギルドが登録されていなかった場合、ギルドを登録
-        if not self.db_manager.get('guilds', guild_id):
-            self.db_manager.set('guilds', guild_id, {})
-        return
-    
-    def get_tasks(self, user_id: int) -> dict:
-        # タスクを取得
-        return self.db_manager.get('users', user_id)['tasks']
+    def get_user(self, user: discord.User):
+        return self.db_manager.get('users', str(user.id))
 
-    def get_notification_status(self, user_id: int) -> bool:
-        # ユーザーの通知設定を取得
-        return (self.db_manager.get('users', user_id))['notification']
+    def update_user(self, user: discord.User, data: dict):
+        right_data_schema = {
+            'name': str,
+            'notification': bool,
+            'tasks': dict[str, str | dict],
+            'tags': dict[str, dict[str, datetime.datetime]]
+        }
+        for key in data.keys():
+            if not list(data.keys()) == list(right_data_schema.keys()):
+                raise ValueError(f'Invalid key name. (key: {key})')
+            if not isinstance(data[key], right_data_schema[key]):
+                raise ValueError(f'Invalid data type. (key: {key})')
+        
+        self.db_manager.update('users', str(user.id), data)
     
-    def get_threads(self, user_id: int) -> dict:
-        # ユーザーのスレッド情報を取得
-        return self.db_manager.get('users', user_id)['threads']
+    def add_task(self, user: discord.User, content: str):
+        # 重複しないtask_idを生成
+        used_ids = self.db_manager.get('users', str(user.id))['tasks']['used_ids']
+        while task_id in used_ids:
+            task_id = utils.generate_id()
+        used_ids.append(task_id)
+        self.db_manager.update('users', str(user.id), {'tasks': {'used_ids': used_ids}})
+        # taskを追加
+        user_data = self.db_manager.get('users', str(user.id))
+        user_data['tasks'][task_id] = content
+        self.db_manager.update('users', str(user.id), user_data)
+    
+    def remove_task(self, user: discord.User, task_id: str):
+        user_data = self.db_manager.get('users', str(user.id))
+        user_data['tasks'].pop(task_id)
+        self.db_manager.update('users', str(user.id), user_data)
+    
+    def get_tasks(self, user: discord.User):
+        return self.db_manager.get('users', str(user.id))['tasks']
 
-    def get_all_guilds(self) -> list[int]:
-        # ギルドIDを取得
-        return [int(guild) for guild in self.db_manager.get('guilds', None)]
-    
-    def get_users_by_thread(self, guild_id: int, thread_id: int) -> list[dict]:
-        # スレッドに登録されているユーザーを取得
-        users = self.db_manager.get('users', None)
-        # スレッドに登録されているユーザーの情報を返す
-        return [user for user in users if thread_id in users[user]['threads'][guild_id]]
-    
-    def get_deadline(self, user_id: int, guild_id: int, thread_id: int) -> datetime.datetime:
-        # スレッドの締切日時を取得
-        return (self.db_manager.get('users', user_id))['threads'][guild_id][thread_id]
-    
-    def toggle_notification(self, user_id: int):
-        # 現在の通知設定を取得
-        notification = self.get_notification_status(user_id)
-        # 通知設定を反転
-        self.db_manager.update('users', user_id, {'notification': not notification})
-        return
-    
-    def update_user_info(self, user_id: int, data: dict):
-        # ユーザー情報を更新
-        self.db_manager.update('users', user_id, data)
-        return
-    
-    def delete_thread(self, user_id: int, guild_id: int, thread_id: int):
-        # スレッドが登録されていなかった場合は何もしない
-        if thread_id not in (self.db_manager.get('users', user_id))['threads']:
-            return
-        else:
-            # 操作するスレッドの情報を取得
-            threads = (self.db_manager.get('users', user_id))['threads'][guild_id]
-            # スレッドを削除
-            threads.pop(thread_id)
-            # スレッドを更新
-            self.db_manager.update('users', user_id, {f'threads.{guild_id}': threads})
-            return
-    
-    def delete_user(self, user_id: int):
-        # ユーザーを削除
-        self.db_manager.delete('users', user_id)
-        return
+    def update_task(self, user: discord.User, task_id: str, content: str):
+        user_data = self.db_manager.get('users', str(user.id))
+        user_data['tasks'][task_id] = content
+        self.db_manager.update('users', str(user.id), user_data)
 
-    def delete_tasks(self, user_id: int):
-        # タスクを削除
-        self.db_manager.update('users', user_id, {'tasks': {}})
-        return
 
 
 if __name__ == '__main__':
