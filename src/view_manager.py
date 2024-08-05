@@ -1,5 +1,6 @@
 import discord
 
+from main import Tag, client
 
 '''
 classらの引数にあるextraは、
@@ -19,19 +20,27 @@ class ThreadsSelect(discord.ui.ChannelSelect):
             max_values=25,
             channel_types=[discord.ChannelType.public_thread, discord.ChannelType.private_thread],
         )
+        self.extras = extras
     
     async def callback(self, interaction: discord.Interaction):
-        # メンバーを選択するviewに遷移
         selected_threads = interaction.data['values']
-        print(selected_threads)
-        pass
+        
+        if 'tag' in list(self.extras.keys()):
+            await interaction.response.edit_message(
+                view=TagView2(
+                    extras={
+                        'tag': Tag(thread_id=selected_threads[0])
+                    }
+                )
+            )
+        return
 
 class MemberSelect(discord.ui.UserSelect):
     def __init__(self, extras: dict | None = None):
         '''
         extrasは、tag,untagモードの場合は
         {
-            'tag': (thread_id: int),
+            'tag': Tag(),
         }
         のようになっている必要があります
         
@@ -41,16 +50,29 @@ class MemberSelect(discord.ui.UserSelect):
             min_values=1,
             max_values=25,
         )
+        self.extras = extras
     
     async def callback(self, interaction: discord.Interaction):
-        # deadlineを入力するviewに遷移
         selected_users = interaction.data['values']
-        print(selected_users)
-        pass
+        thread_id = self.extras['tag'].thread_id
+        
+        if 'tag' in list(self.extras.keys()):
+            await interaction.response.edit_message(
+                view=TagView3(
+                    extras={
+                        'tag': Tag(
+                            thread_id=thread_id,
+                            users=selected_users
+                        )
+                    }
+                )
+            )
+        
+        return
 
 class DeadlineInputModal(discord.ui.Modal):
     raw_deadline = discord.ui.TextInput(
-        placeholder='期限を入力してください',
+        placeholder='期限を入力してください (例: )',
         label='期限',
         style=discord.TextStyle.short,
         min_length=1,
@@ -62,10 +84,13 @@ class DeadlineInputModal(discord.ui.Modal):
         self.extras = extras
     
     def on_submit(self, interaction: discord.Interaction):
-        # ここでmain.pyのcallbackを呼び出す
         deadline = self.raw_deadline.value
-        print(deadline)
-        pass
+        
+        if 'tag' in list(self.extras.keys()):
+            self.extras['tag'].deadline = deadline
+            client.tag_manager.add_tag(self.extras['tag'])
+        
+
 
 class ConfimButton(discord.ui.Button):
     def __init__(self, extras: dict | None = None):
@@ -73,6 +98,7 @@ class ConfimButton(discord.ui.Button):
             label='OK',
             style=discord.ButtonStyle.primary,
         )
+        self.extras = extras
     
     async def callback(self, interaction: discord.Interaction):
         pass
@@ -83,21 +109,29 @@ class CancelButton(discord.ui.Button):
             label='キャンセル',
             style=discord.ButtonStyle.secondary,
         )
+        self.extras = extras
     
     async def callback(self, interaction: discord.Interaction):
         pass
 
 
 class TagView1(discord.ui.View):
-    def __init__(self):
+    def __init__(self, extras: dict | None = None):
         super().__init__()
-        self.add_item(ThreadsSelect())
+        self.add_item(ThreadsSelect(extras=extras))
         self.add_item(ConfimButton())
         self.add_item(CancelButton())
 
 class TagView2(discord.ui.View):
-    def __init__(self):
+    def __init__(self, extras: dict | None = None):
         super().__init__()
-        self.add_item(MemberSelect())
+        self.add_item(MemberSelect(extras=extras))
+        self.add_item(ConfimButton())
+        self.add_item(CancelButton())
+
+class TagView3(discord.ui.View):
+    def __init__(self, extras: dict | None = None):
+        super().__init__()
+        self.add_item(DeadlineInputModal(extras=extras))
         self.add_item(ConfimButton())
         self.add_item(CancelButton())
