@@ -1,4 +1,3 @@
-import asyncio
 from dataclasses import dataclass
 import datetime
 import os
@@ -8,7 +7,6 @@ import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
 
-from main import Tag
 import utils as utils
 
 
@@ -26,11 +24,14 @@ class DBManager(metaclass=utils.Singleton):
             print(e)
             return False
     
-    def get(self, collection: str, document: str | None) -> dict:
+    def get(self, collection: str, document: str | None=None) -> dict:
         try:
             doc_ref = self.db.collection(collection).document(document) if document else self.db.collection(collection)
             doc = doc_ref.get()
-            return doc.to_dict()
+            if isinstance(doc, list):
+                return [d.to_dict() for d in doc]
+            else:
+                return doc.to_dict()
         except Exception as e:
             print(e)
             return {}
@@ -74,7 +75,7 @@ class DBManager(metaclass=utils.Singleton):
 
 '''
 ### db architecture
-
+@startjson
 db = {
     'users': {
         (user_id: int): {
@@ -96,7 +97,7 @@ db = {
         ...
     }
 }
-
+@endjson
 ### Tag class
 
 Tag: 
@@ -106,6 +107,13 @@ Tag:
     deadline: datetime.datetime
 '''
 
+@dataclass
+class Tag:
+    client: discord.Client = None
+    guild_id: int = None
+    thread_id: int = None
+    users: list[discord.User] = None
+    deadline: datetime.datetime = None
 
 class TagManager:
     def __init__(self):
@@ -115,7 +123,13 @@ class TagManager:
         for user in tag.users:
             user_id = user.id
             user_data = self.db_manager.get('users', str(user_id))
-            user_data['tags'][str(tag.guild_id)][str(tag.thread_id)] = tag.deadline
+            # 存在しないキーの配下に新しいキーを追加するとエラーが発生するため、キーが存在しない場合は追加する
+            if str(tag.guild_id) not in user_data['tags']:
+                user_data['tags'][str(tag.guild_id)] = {}
+            if str(tag.thread_id) not in user_data['tags'][str(tag.guild_id)]:
+                user_data['tags'][str(tag.guild_id)][str(tag.thread_id)] = tag.deadline
+            else:
+                user_data['tags'][str(tag.guild_id)][str(tag.thread_id)] = tag.deadline
             self.db_manager.update('users', str(user_id), user_data)
     
     def remove_tag(self, tag: Tag):
@@ -136,8 +150,46 @@ class TagManager:
             user_data['tags'][str(tag.guild_id)][str(tag.thread_id)] = tag.deadline
             self.db_manager.update('users', str(user_id), user_data)
     
+    def get_users_by_thread(self, tag: Tag):
+        thread_id = tag.thread_id
+        user_ids = []
+        user_data = self.db_manager.get('users')
+        if isinstance(user_data, list):
+            for user in user_data:
+                if str(tag.guild_id) in user['tags'] and str(thread_id) in user['tags'][str(tag.guild_id)]:
+                    user_ids.append(user['user_id'])
+        elif isinstance(user_data, dict):
+            for user_id in user_data.keys():
+                user_data = self.db_manager.get('users', user_id)
+                if str(tag.guild_id) in user_data['tags'] and str(thread_id) in user_data['tags'][str(tag.guild_id)]:
+                    user_ids.append(user_id)
+        else:
+            raise ValueError('Invalid data type.')
+        return user_ids
+
+    def get_threads_by_user(self, users: list[discord.User]) -> dict[str, list[tuple[str, datetime.datetime]]]:
+        '''
+        {
+            (guild_id: str): [
+                (thread_id: str, deadline: datetime.datetime),
+                ...
+            ]
+        }
+        '''
+        for user in users:
+            user_id = user.id
+            user_data = self.db_manager.get('users', str(user_id))
+            threads = {}
+            for guild_id in user_data['tags'].keys():
+                guild_threads = []
+                for thread_id in user_data['tags'][guild_id].items():
+                    guild_threads.append(thread_id)
+                threads[guild_id] = guild_threads
+        return threads
+    
     def add_user(self, user: discord.User):
         user_data = {
+            'user_id': user.id,
             'name': user.name,
             'notification': True,
             'tasks': {},
@@ -151,8 +203,12 @@ class TagManager:
     def get_user(self, user: discord.User):
         return self.db_manager.get('users', str(user.id))
 
+    def get_all_users(self):
+        return self.db_manager.get('users')
+
     def update_user(self, user: discord.User, data: dict):
         right_data_schema = {
+            'user_id': int,
             'name': str,
             'notification': bool,
             'tasks': dict[str, str | dict],
@@ -189,6 +245,11 @@ class TagManager:
     def update_task(self, user: discord.User, task_id: str, content: str):
         user_data = self.db_manager.get('users', str(user.id))
         user_data['tasks'][task_id] = content
+        self.db_manager.update('users', str(user.id), user_data)
+    
+    def toggle_notification(self, user: discord.User):
+        user_data = self.db_manager.get('users', str(user.id))
+        user_data['notification'] = not user_data['notification']
         self.db_manager.update('users', str(user.id), user_data)
 
 
