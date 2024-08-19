@@ -15,9 +15,7 @@ class DBManager(metaclass=utils.Singleton):
     def __init__(self):
         url = os.getenv('MEMBER_TAGGER_FIREBASE_CREDENTIALS')
         response = urlopen(url)
-        data = response.read()
-        text = data.decode('utf-8')
-        self.cred = credentials.Certificate(text)
+        self.cred = credentials.Certificate(response)
         firebase_admin.initialize_app(self.cred)
         self.db = firestore.client()
     
