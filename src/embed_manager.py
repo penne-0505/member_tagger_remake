@@ -8,7 +8,7 @@ class EmbedManager:
     def __init__(self):
         pass
     
-    def format_result(self, result: dict[str, list[dict[str, discord.User | list[dict[str, datetime.datetime]]]]]) -> str:
+    def format_result(self, result: dict[str, list[dict[str, discord.User | list[dict[str, datetime.datetime | discord.Thread]]]]]) -> str:
         '''
         (ユーザーメンション)がタグ付けされているスレッド:
             - (スレッドメンション): (期限(yyyy/mm/dd))
@@ -42,21 +42,71 @@ class EmbedManager:
         formatted_result = ''
         for mode, data in result.items():
             if mode == 'get_users_by_thread':
-                thread = data['thread']
-                users = data['users']
-                formatted_result += f'{thread.mention}({data["deadline"].strftime("%Y/%m/%d")})にタグ付けされているユーザー:\n'
+                if not data:
+                    return 'タグ付けされているユーザーは存在しませんでした。'
+                
+                thread = data['thread'] # discord.Thread
+                users = data['users'] # list[discord.User]
+                formatted_result += f'{thread.mention}にタグ付けされているユーザー:\n'
                 for user in users:
-                    formatted_result += f'- {user.mention}\n'
+                    formatted_result += f'  - {user.mention}\n'
+
+                if not formatted_result:
+                    return 'タグ付けされているユーザーは存在しませんでした。'
+                
             
             elif mode == 'get_threads_by_user':
-                messages = []
-                for user_dict in data:
-                    user_mention = user_dict['user'].mention
-                    users_threads = []
+                if not data:
+                    return 'タグ付けされているスレッドは存在しませんでした。'
+                
+                for user_data in data:
+                    user = user_data['user']
+                    threads = user_data['threads']
+                    formatted_result += f'{user.mention}がタグ付けされているスレッド:\n'
+                    for thread_data in threads:
+                        thread = thread_data['thread'] # discord.Thread
+                        deadline = thread_data['deadline'] # datetime.datetime
+                        formatted_result += f'  - {thread.mention}: {deadline.strftime("%Y/%m/%d")}\n'
+                
+                if not formatted_result:
+                    return 'タグ付けされているスレッドは存在しませんでした。'
+            
+            
+            elif mode == 'get_all':
+                if not data:
+                    return 'タグ付けされているスレッドは存在しませんでした。'
+                
+                interaction = result['interaction'] # discord.Interaction
+                
+                for user_data in data:
+                    user = list(user_data.keys())[0]
+                    threads = user_data[user]
                     
-                
-                
+                    if not threads:
+                        continue
 
+                    # interactionのguild以外のguild配下のスレッドを除外する
+                    current_guild = interaction.guild
+                    for guild_id in list(threads.keys()):
+                        if int(guild_id) != current_guild.id:
+                            del threads[guild_id]
+                    
+                    threads = threads[str(current_guild.id)] if str(current_guild.id) in list(threads.keys()) else []
+                    
+                    if not threads:
+                        continue
+                    
+                    formatted_result += f'{user.mention}がタグ付けされているスレッド:\n'
+                    
+                    for thread_data in threads:
+                        thread = interaction.client.get_channel(int(thread_data[0])) # discord.Thread
+                        deadline = thread_data[1] # datetime.datetime
+                        formatted_result += f'  - {thread.mention}: {deadline.strftime("%Y/%m/%d")}\n'
+                
+                if not formatted_result:
+                    return 'タグ付けされているスレッドは存在しませんでした。'
+        
+        
         return formatted_result
 
 
@@ -99,7 +149,7 @@ class EmbedManager:
             
             elif data['untag'].guild_id and data['untag'].thread_id and not data['untag'].users:
                 tagged_user_ids = data['untag_tagged_user_ids']
-                tagged_users = [data['untag'].client.get_user(int(user_id)) for user_id in tagged_user_ids]
+                tagged_users = [data['untag'].client.get_user(int(user_id.id)) for user_id in tagged_user_ids]
                 
                 if not tagged_users:
                     description = 'タグ付けされているメンバーは存在しませんでした。'
@@ -169,9 +219,9 @@ class EmbedManager:
         elif current_mode == 'toggle_notification':
             past_notification = data['current_notification']
             if past_notification:
-                description = '🔕通知をオフにしました。'
+                description = '🚫 通知をオフにしました。'
             else:
-                description = '🔔通知をオンにしました。'
+                description = '🔔 通知をオンにしました。'
             embed = discord.Embed(
                 title='通知設定を変更しました',
                 description=description,
