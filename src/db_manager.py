@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import datetime
 import os
+from urllib.request import urlopen
 
 import discord
 import firebase_admin
@@ -12,7 +13,11 @@ import utils as utils
 
 class DBManager(metaclass=utils.Singleton):
     def __init__(self):
-        self.cred = credentials.Certificate(os.getenv('MEMBER_TAGGER_FIREBASE_CREDENTIALS'))
+        url = os.getenv('MEMBER_TAGGER_FIREBASE_CREDENTIALS')
+        response = urlopen(url)
+        data = response.read()
+        text = data.decode('utf-8')
+        self.cred = credentials.Certificate(text)
         firebase_admin.initialize_app(self.cred)
         self.db = firestore.client()
     
