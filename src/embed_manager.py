@@ -225,9 +225,11 @@ class EmbedManager:
 
         elif current_mode == 'delete_task':
             if not data['result']['delete_task'] == 'done':
+                total_page = data['result']['page']
+                current_page = data['result']['current_page']
                 embed = discord.Embed(
                     title='1/2 削除するタスクの選択',
-                    description=f'削除するタスクを選択してください。\npage: (**{data["result"]['current_page']} / {data["result"]['page']}**)',
+                    description=f'削除するタスクを選択してください。\npage: (**{current_page} / {total_page}**)',
                     color=discord.Color.blue()
                 )
             else:
