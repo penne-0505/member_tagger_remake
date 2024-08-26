@@ -21,7 +21,6 @@ embed_manager = EmbedManager()
 
 class ThreadsSelect(discord.ui.ChannelSelect):
     def __init__(self, extras: dict[str, Tag] | None = None):
-        '''extrasは基本的に参照されません'''
         super().__init__(
             placeholder='スレッドを選択してください',
             min_values=1,
@@ -65,14 +64,6 @@ class ThreadsSelect(discord.ui.ChannelSelect):
 
 class MemberSelect(discord.ui.UserSelect):
     def __init__(self, extras: dict[str, Tag] | None = None):
-        '''
-        extrasは、tag,untagモードの場合は
-        {
-            'tag': Tag(),
-        }
-        のようになっている必要があります
-        
-        '''
         super().__init__(
             placeholder='ユーザーを選択してください',
             min_values=1,
@@ -195,10 +186,6 @@ class TaskContentInputModal(discord.ui.Modal):
 
 class TaskSelect(discord.ui.Select):
     def __init__(self, extras: dict[str, Task | list[Task]] | None = None):
-        '''
-        extras['tasks'] = [Task(), Task(), ...]
-        のようになっているので、これを参照してSelectOptionを作成する
-        '''
         self.extras = extras
         current_page = self.extras['result']['current_page']
         tasks_per_page = 25

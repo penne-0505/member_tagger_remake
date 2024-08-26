@@ -119,10 +119,6 @@ class TagManager:
         thread_id = tag.thread_id
         user_ids = []
         user_data = self.db_manager.get('users')
-        '''
-        サンプルデータ
-        [{'notification': True, 'user_id': 1021394941743734814, 'tasks': {}, 'tags': {}, 'name': 'mamadaisuki.'}, {'notification': True, 'user_id': 1038733998630899743, 'tasks': {}, 'tags': {}, 'name': 'error.428'}, {'notification': True, 'user_id': 569651149440024628, 'tasks': {}, 'tags': {}, 'name': 'onigiri_oo'}, {'notification': True, 'user_id': 641764833460748295, 'tasks': {}, 'tags': {}, 'name': 'chongyanjing8744'}, {'notification': True, 'user_id': 687202120969355284, 'tasks': {}, 'tags': {}, 'name': 'zapks'}, {'notification': True, 'user_id': 704115683151315055, 'tasks': {}, 'tags': {'1039814831395569676': {'1270798541970739200': DatetimeWithNanoseconds(2020, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)}, '884682745429766164': {'1272926429960732763': DatetimeWithNanoseconds(2024, 8, 13, 0, 0, tzinfo=datetime.timezone.utc), '1212549118929543248': DatetimeWithNanoseconds(2024, 8, 15, 0, 0, tzinfo=datetime.timezone.utc)}}, 'name': 'penne0505'}, {'notification': True, 'user_id': 711421164194365471, 'tasks': {}, 'tags': {}, 'name': 'rarorurerin'}, {'notification': True, 'user_id': 712503770931527778, 'tasks': {}, 'tags': {}, 'name': 'piplup_lv.5'}, {'notification': True, 'user_id': 720241890662023268, 'tasks': {}, 'tags': {}, 'name': 'sasasasawamura'}, {'notification': True, 'user_id': 730778811263746062, 'tasks': {}, 'tags': {}, 'name': 'aoi053112'}, {'notification': True, 'user_id': 756101891548512287, 'tasks': {}, 'tags': {}, 'name': 'fookurou'}, {'notification': True, 'user_id': 824616112909058058, 'tasks': {}, 'tags': {}, 'name': 'yamamoto_katsuyoshi'}, {'notification': True, 'user_id': 843146360244011008, 'tasks': {}, 'tags': {}, 'name': 'aki5672'}, {'notification': True, 'user_id': 867192594962055178, 'tasks': {}, 'tags': {}, 'name': 'tarabaebi'}, {'notification': True, 'user_id': 886465290785918996, 'tasks': {}, 'tags': {}, 'name': 'fukimayu'}, {'notification': True, 'user_id': 907286924354551829, 'tasks': {}, 'tags': {}, 'name': 'testbot.'}, {'notification': True, 'user_id': 912553432093712434, 'tasks': {}, 'tags': {}, 'name': 'tarabagai_ebi'}, {'notification': True, 'user_id': 938704672905105439, 'tasks': {}, 'tags': {}, 'name': 'obzerver381ribenrendesu9041'}, {'notification': True, 'user_id': 948937635806707762, 'tasks': {}, 'tags': {}, 'name': 'xizhuzhenshu7946'}, {'notification': True, 'user_id': 957815990425624596, 'tasks': {}, 'tags': {}, 'name': 'yutsukurishikuangebichiyanneru'}, {'notification': True, 'user_id': 958492903217451069, 'tasks': {}, 'tags': {}, 'name': 'f.ka0311'}, {'notification': True, 'user_id': 966630541950586900, 'tasks': {}, 'tags': {}, 'name': 'mont7465'}, {'notification': True, 'user_id': 972763598625574995, 'tasks': {}, 'tags': {}, 'name': 'kyohakarakuti'}]
-        '''
         # ユーザーごとに、ギルドIDとスレッドIDが一致するかを確認し、一致する場合はユーザーIDをリストに追加
         for user in user_data:
             if str(tag.guild_id) in user['tags'] and str(thread_id) in user['tags'][str(tag.guild_id)]:
@@ -131,14 +127,6 @@ class TagManager:
         return user_ids
 
     def get_threads_by_user(self, users: list[discord.User]) -> dict[str, list[tuple[str, datetime.datetime]]]:
-        '''
-        {
-            (guild_id: str): [
-                (thread_id: str, deadline: datetime.datetime),
-                ...
-            ]
-        }
-        '''
         for user in users:
             user_id = user.id
             user_data = self.db_manager.get('users', str(user_id))
