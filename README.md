@@ -1,1 +1,1 @@
-still workin on it
+This is a Discord bot designed for a small community. It allows you to link threads to users and assign tasks (TODOs) to each user. While it was originally intended to manage group project discussions, you’re free to customize and use it however you like. The code is simple enough that a detailed guide isn’t really necessary I think. There is a license, but we won’t say anything as long as you don’t copy and paste it wholesale for commercial use.
