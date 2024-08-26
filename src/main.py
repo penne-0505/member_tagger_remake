@@ -5,13 +5,13 @@ from os import getenv
 
 import discord
 from discord import app_commands
-from discord.ext import tasks
+from discord.ext import tasks as discord_tasks
 
-from db_manager import TagManager, Tag
+from db_manager import TagManager
 from embed_manager import EmbedManager
 from notification_handler import NotificationHandler
-from view_manager import TagView1, UntagView1, GetThreadsView1, GetUsersView1
-from utils import INFO, ERROR, WARN, DEBUG, SUCCESS, FORMAT, DATEFORMAT, blue, red, yellow, magenta, green, cyan, bold
+from view_manager import TagView1, UntagView1, GetThreadsView1, GetUsersView1, TaskContentInputModal, DeleteTaskViewAll, DeleteTaskViewNext, DeleteTaskViewPrev, DeleteTaskViewOnly
+from utils import INFO, ERROR, WARN, DEBUG, SUCCESS, FORMAT, DATEFORMAT, Tag, Task, blue, red, yellow, magenta, green, cyan, bold
 
 
 # intents(権限のようなもの)を全て有効化
@@ -42,8 +42,9 @@ class Client(discord.Client):
         self.set_presence.start()
         
         # logging
-        logging.info(INFO + f'Logged in as {self.user.name}({self.user.id})')
-        logging.info(INFO + f'Bot is ready.')
+        logging.info(INFO + f'Logged in as {green(self.user.name)} ({blue(self.user.id)})')
+        logging.info(INFO + f'Connected to {green(len(guilds))} guilds')
+        logging.info(INFO + bold('Bot is ready.'))
         
         # 毎日0時に通知
         until_notify = await self.calc_until_notify()
@@ -61,7 +62,7 @@ class Client(discord.Client):
             return
         # treeコマンドを同期
         await tree.sync()
-        logging.info(SUCCESS + 'Commands synced.')
+        logging.info(SUCCESS + bold('Commands synced.'))
         self.synced = True
         return
     
@@ -82,7 +83,7 @@ class Client(discord.Client):
         target_users = [member for member in all_members if member not in current_users]
 
         # logging
-        msg = INFO + 'New users: ' + ', '.join([user.name for user in target_users]) if target_users else INFO + 'No new users.'
+        msg = INFO + bold('New users: ') + green(', '.join([user.name for user in target_users])) if target_users else INFO + bold('No new users.')
         logging.info(msg)
 
         # タグマネージャーにセット
@@ -97,32 +98,36 @@ class Client(discord.Client):
         midnight = datetime.datetime.combine(today, datetime.time(0, 0, 0, 0), tz)
         until_notify = midnight + datetime.timedelta(days=1) - now # 今日の0時からの残り時間
         total_seconds = until_notify.total_seconds()
-        logging.info(INFO + f'Until notify: {int(total_seconds)}seconds')
+        logging.info(INFO + f'Until notify: {blue(int(total_seconds))}seconds')
         return total_seconds
 
     # コマンド実行時のログ
     async def on_app_command_completion(self, interaction: discord.Interaction, command: app_commands.Command | app_commands.ContextMenu):
         # 装飾してログを出力
-        exec_time = magenta(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        exec_guild = yellow(interaction.guild) if interaction.guild else 'DM'
+        exec_channel = magenta(interaction.channel) if interaction.channel else '(DM)'
         exec_user = interaction.user
         user_name = blue(exec_user.name)
         user_id = blue(exec_user.id)
         exec_command = green(command.name)
-        logging.info(INFO + f'Command executed by {user_name}({user_id}): {exec_command} at {exec_time}')
+        logging.info(INFO + f'Command executed by {user_name}({user_id}): {exec_command} in {exec_guild}({exec_channel})')
     
-    # 30分ごとにプレゼンスを更新
-    @tasks.loop(minutes=30)
+    # 30分ごとにプレゼンスを更新 (更新自体は必要ないが、一部サービスでのスリープを回避するため)
+    @discord_tasks.loop(minutes=30)
     async def set_presence(self):
         now = datetime.datetime.now()
         now = now.strftime('%Y/%m/%d %H:%M') # 例: 2021/08/01 12:34
-        activity = discord.Game(name=f'/help | {now}')
+        
+        activity = discord.Game(name=f'{now}')
         await self.change_presence(activity=activity)
         await tree.sync()
+        
+        now = magenta(now)
         logging.info(INFO + 'Presence set at ' + now)
     
     ########## notify ##########
     notify_freq = 24 # 通知頻度(時間) (将来的にはdiscord上で変更できるようにする(?))
-    @tasks.loop(hours=notify_freq)
+    @discord_tasks.loop(hours=notify_freq)
     async def notify(self):
         # すべてのユーザー、スレッド、期限を取得して、通知を送る
         for user in self.tag_manager.get_all_users():
@@ -153,7 +158,7 @@ tree = discord.app_commands.CommandTree(client)
 
 @tree.command(name='ping', description='for testing')
 async def ping(interaction: discord.Interaction):
-    await interaction.response.send_message('pong! 🏓', ephemeral=True)
+    await interaction.response.send_message('**pong!** 🏓', ephemeral=True)
 
 @tree.command(name='change_notify_freq', description='通知頻度を変更します')
 async def change_notify_freq(interaction: discord.Interaction):
@@ -210,7 +215,7 @@ async def get_all(interaction: discord.Interaction):
             continue
         
         threads = client.tag_manager.get_threads_by_user([user_obj])
-        
+
         result.append({user_obj: threads})
     
     extras = {'get_all': Tag(client=client), 'result': {'get_all': result, 'interaction': interaction}}
@@ -228,13 +233,41 @@ async def toggle_notification(interaction: discord.Interaction):
         embed=client.embed_manager.get_embed(extras)
     )
 
-# @tree.command(name='help', description='ヘルプを表示します')
-# async def help(interaction: discord.Interaction):
-#     await interaction.response.send_message(ephemeral=True, view=HelpView1())
+@tree.command(name='add_task', description='タスクを追加します')
+async def add_task(interaction: discord.Interaction):
+    extras = {'add_task': Task(client=client, user=interaction.user)}
+    await interaction.response.send_modal(TaskContentInputModal(extras=extras))
 
-# @tree.command(name='invite_link', description='招待リンクを表示します')
-# async def invite_link(interaction: discord.Interaction):
-#     await interaction.response.send_message(ephemeral=True, view=InviteLinkView1())
+@tree.command(name='delete_task', description='タスクを削除します')
+async def detele_task(interaction: discord.Interaction):
+    extras = {'delete_task': Task(client=client, user=interaction.user)}
+    tasks = client.tag_manager.get_tasks(extras['delete_task'])
+    del tasks['used_ids']
+    
+    page = (len(tasks) + 24) // 25
+    
+    extras['result'] = {'delete_task': tasks, 'interaction': interaction, 'page': page, 'current_page': 1}
+    
+    view = DeleteTaskViewNext if page > 1 else DeleteTaskViewOnly
+    
+    await interaction.response.send_message(
+        ephemeral=True,
+        view=view(extras=extras),
+        embed=client.embed_manager.get_embed(extras)
+    )
+
+@tree.command(name='get_task', description='タスクを取得します')
+async def get_tasks(interaction: discord.Interaction):
+    extras = {'get_tasks': Task(client=client, user=interaction.user)}
+    tasks = client.tag_manager.get_tasks(extras['get_tasks'])
+    del tasks['used_ids']
+    
+    extras['result'] = {'get_tasks': tasks, 'interaction': interaction}
+    
+    await interaction.response.send_message(
+        ephemeral=True,
+        embed=client.embed_manager.get_embed(extras)
+    )
 
 
 if __name__ == '__main__':

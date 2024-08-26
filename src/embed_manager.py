@@ -1,7 +1,7 @@
 import datetime
 import discord
 
-from db_manager import Tag
+from utils import Tag, Task
 
 
 class EmbedManager:
@@ -9,36 +9,6 @@ class EmbedManager:
         pass
     
     def format_result(self, result: dict[str, list[dict[str, discord.User | list[dict[str, datetime.datetime | discord.Thread]]]]]) -> str:
-        '''
-        (ユーザーメンション)がタグ付けされているスレッド:
-            - (スレッドメンション): (期限(yyyy/mm/dd))
-            ...
-        
-        (スレッドメンション)((期限(yyyy/mm/dd)))にタグ付けされているユーザー:
-            - (ユーザーメンション)
-            ...
-        
-        以上のように整形して返す。
-        '''
-        
-        '''
-        sample data:
-        
-        {
-            'get_threads_by_user': [
-                {
-                    'user': <User id=704115683151315055 name='penne0505' global_name='ぺんね' bot=False>,
-                    'threads': [
-                        {
-                            <Thread id=1212549118929543248 name='🛸║あもあす' parent=🍧║どうが owner_id=569651149440024628 locked=False archived=False>: DatetimeWithNanoseconds(2024, 8, 15, 0, 0, tzinfo=datetime.timezone.utc)
-                        }
-                    ]
-                }
-            ]
-        }
-        
-        '''
-        
         formatted_result = ''
         for mode, data in result.items():
             if mode == 'get_users_by_thread':
@@ -97,20 +67,36 @@ class EmbedManager:
                         continue
                     
                     formatted_result += f'{user.mention}がタグ付けされているスレッド:\n'
-                    
+
                     for thread_data in threads:
                         thread = interaction.client.get_channel(int(thread_data[0])) # discord.Thread
+                        if not thread:
+                            continue
                         deadline = thread_data[1] # datetime.datetime
                         formatted_result += f'  - {thread.mention}: {deadline.strftime("%Y/%m/%d")}\n'
+                    
+                    if formatted_result == f'{user.mention}がタグ付けされているスレッド:\n':
+                        return 'タグ付けされているスレッドは存在しませんでした。'
                 
                 if not formatted_result:
                     return 'タグ付けされているスレッドは存在しませんでした。'
+            
+            elif mode == 'get_tasks':
+                '''data: dict[str, str] (id: content)'''
+                if not data:
+                    return 'タスクは存在しませんでした。'
+                
+                for task in data.values():
+                    formatted_result += f'- {task}\n'
+                
+                if not formatted_result:
+                    return 'タスクは存在しませんでした。'
         
         
         return formatted_result
 
 
-    def get_embed(self, data: dict[str, Tag]) -> discord.Embed:
+    def get_embed(self, data: dict[str, Tag | Task]) -> discord.Embed:
         '''tag must be like ('tag', Tag)'''
         current_mode = list(data.keys())[0]
         if current_mode == 'tag':
@@ -228,6 +214,40 @@ class EmbedManager:
                 color=discord.Color.green()
             )
             return embed
+
+        elif current_mode == 'add_task':
+            embed = discord.Embed(
+                title='タスク追加',
+                description='タスクを追加しました。',
+                color=discord.Color.green()
+            )
+            return embed
+
+        elif current_mode == 'delete_task':
+            if not data['result']['delete_task'] == 'done':
+                embed = discord.Embed(
+                    title='1/2 削除するタスクの選択',
+                    description=f'削除するタスクを選択してください。\npage: (**{data["result"]['current_page']} / {data["result"]['page']}**)',
+                    color=discord.Color.blue()
+                )
+            else:
+                embed = discord.Embed(
+                    title='タスク削除',
+                    description='タスクを削除しました。',
+                    color=discord.Color.green()
+                )
+            return embed
+        
+        elif current_mode == 'get_tasks':
+            result = self.format_result(data['result'])
+            user = data['get_tasks'].user
+            embed = discord.Embed(
+                title=f'{user.name}のタスク',
+                description=result if result else 'タスクは存在しませんでした。',
+                color=discord.Color.green()
+            )
+            return embed
+
         
         elif current_mode == 'cancel':
             embed = discord.Embed(

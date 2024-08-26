@@ -1,3 +1,7 @@
+import datetime
+
+import discord
+from dataclasses import dataclass
 from colorama import Fore, Style
 
 import uuid
@@ -42,3 +46,20 @@ def cyan(text: str) -> str:
 
 def bold(text: str) -> str:
     return f'{Style.BRIGHT}{text}{Style.RESET_ALL}'
+
+
+@dataclass
+class Tag:
+    client: discord.Client = None
+    guild_id: int = None
+    thread_id: int = None
+    users: list[discord.User] = None
+    deadline: datetime.datetime = None
+
+
+@dataclass
+class Task:
+    client: discord.Client = None
+    user: discord.User = None
+    task_id: str = None
+    content: str = None

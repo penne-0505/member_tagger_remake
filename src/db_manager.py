@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 import datetime
 import os
 import requests
@@ -8,7 +7,8 @@ import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
 
-import utils as utils
+import utils
+from utils import Tag, Task
 
 
 class DBManager(metaclass=utils.Singleton):
@@ -75,48 +75,7 @@ class DBManager(metaclass=utils.Singleton):
         return
 
 
-'''
-### db architecture
-@startjson
-db = {
-    'users': {
-        (user_id: int): {
-            'name': (str),
-            'notification': (bool),
-            'tasks': {
-                'used_ids': [(task_id: str)],
-                (task_id: str): {
-                    'content': (str),
-                }
-                ...
-            },
-            'tags': {
-                (guild_id: int): {
-                    (thread_id: int): (deadline: datetime.datetime), # deadlineの実際の型はtimestamp
-                }
-            }
-        }
-        ...
-    }
-}
-@endjson
-### Tag class
-
-Tag: 
-    guild_id: int
-    thread_id: int
-    users: list[discord.User]
-    deadline: datetime.datetime
-'''
-
-@dataclass
-class Tag:
-    client: discord.Client = None
-    guild_id: int = None
-    thread_id: int = None
-    users: list[discord.User] = None
-    deadline: datetime.datetime = None
-
+# TODO: TagManager全体のメソッドにおいて、一度のアクセスで追加・削除・取得を行うように変更
 class TagManager:
     def __init__(self):
         self.db_manager = DBManager()
@@ -226,27 +185,36 @@ class TagManager:
         
         self.db_manager.update('users', str(user.id), data)
     
-    def add_task(self, user: discord.User, content: str):
+    def add_task(self, task: Task):
         # 重複しないtask_idを生成
-        used_ids = self.db_manager.get('users', str(user.id))['tasks']['used_ids']
-        while task_id in used_ids:
-            task_id = utils.generate_id()
-        used_ids.append(task_id)
-        self.db_manager.update('users', str(user.id), {'tasks': {'used_ids': used_ids}})
-        # taskを追加
+        task_id = utils.generate_id()
+        user = task.user
         user_data = self.db_manager.get('users', str(user.id))
-        user_data['tasks'][task_id] = content
+        user_data['tasks'][task_id] = task.content
+        # 生成したtask_idをused_idsに追加
+        if 'used_ids' not in user_data['tasks']:
+            user_data['tasks']['used_ids'] = [task_id]
+        else:
+            user_data['tasks']['used_ids'].append(task_id)
         self.db_manager.update('users', str(user.id), user_data)
     
-    def remove_task(self, user: discord.User, task_id: str):
+    def delete_task(self, task: Task):
+        user = task.user
+        task_id = task.task_id
         user_data = self.db_manager.get('users', str(user.id))
         user_data['tasks'].pop(task_id)
+        user_data['tasks']['used_ids'].remove(task_id)
         self.db_manager.update('users', str(user.id), user_data)
     
-    def get_tasks(self, user: discord.User):
-        return self.db_manager.get('users', str(user.id))['tasks']
+    def get_tasks(self, task: Task):
+        user = task.user
+        user_data = self.db_manager.get('users', str(user.id))
+        return user_data['tasks']
 
-    def update_task(self, user: discord.User, task_id: str, content: str):
+    def update_task(self, task: Task):
+        user = task.user
+        task_id = task.task_id
+        content = task.content
         user_data = self.db_manager.get('users', str(user.id))
         user_data['tasks'][task_id] = content
         self.db_manager.update('users', str(user.id), user_data)
