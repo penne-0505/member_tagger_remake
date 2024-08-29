@@ -260,7 +260,6 @@ async def get_tasks(interaction: discord.Interaction):
     extras['result'] = {'get_tasks': tasks, 'interaction': interaction}
     
     await interaction.response.send_message(
-        ephemeral=True,
         embed=client.embed_manager.get_embed(extras)
     )
 
