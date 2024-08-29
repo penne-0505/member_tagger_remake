@@ -91,6 +91,13 @@ class EmbedManager:
                 
                 if not formatted_result:
                     return 'タスクは存在しませんでした。'
+            
+            elif mode == 'help':
+                if not data:
+                    return 'コマンドが存在しませんでした。'
+                
+                for command, description in data.items():
+                    formatted_result += f'**{command}**: {description}\n'
         
         
         return formatted_result
@@ -249,7 +256,9 @@ class EmbedManager:
                 color=discord.Color.green()
             )
             return embed
-
+        
+        elif current_mode == 'help':
+            result = self.format_result(data['result'])
         
         elif current_mode == 'cancel':
             embed = discord.Embed(

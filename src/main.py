@@ -264,6 +264,20 @@ async def get_tasks(interaction: discord.Interaction):
         embed=client.embed_manager.get_embed(extras)
     )
 
+@tree.command(name='help', description='ヘルプを表示します')
+async def help(interaction: discord.Interaction):
+    all_commmands = tree.walk_commands()
+
+    await interaction.response.send_message(
+        ephemeral=True,
+        embed=client.embed_manager.get_embed({'result': all_commmands})
+    )
+
+@tree.command(name='invite', description='招待リンクを表示します')
+async def invite(interaction: discord.Interaction):
+    url = discord.utils.oauth_url(interaction.application_id, permissions=discord.Permissions(permissions=8))
+    embed = discord.Embed(title='招待リンク', description=url)
+    await interaction.response.send_message(ephemeral=True, embed=embed)
 
 if __name__ == '__main__':
     client.run(getenv('DISCORD_BOT_TOKEN_MT'))
