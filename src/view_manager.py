@@ -311,6 +311,22 @@ class PreviousPageButton(discord.ui.Button):
             embed=embed_manager.get_embed(self.extras)
         )
 
+class LinkButton(discord.ui.Button):
+    def __init__(self, extras: dict[str, str] | None = None):
+        '''extras excpects {'invite': (invite_link: str)}'''
+        super().__init__(
+            label='招待リンク',
+            style=discord.ButtonStyle.primary,
+            url=extras['invite'],
+        )
+        self.extras = extras
+    
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.edit_message(
+            view=None,
+            embed=embed_manager.get_embed(self.extras)
+        )
+
 ########## tag ##########
 class TagView1(discord.ui.View):
     def __init__(self, extras: dict[str, Tag] | None = None):
@@ -388,4 +404,12 @@ class GetTasksView1(discord.ui.View):
     def __init__(self, extras: dict[str, Tag] | None = None):
         super().__init__()
         self.add_item(MemberSelect(extras=extras))
+        self.add_item(CancelButton(extras=extras))
+
+########## invite ##########
+
+class InviteView1(discord.ui.View):
+    def __init__(self, extras: dict[str, Tag] | None = None):
+        super().__init__()
+        self.add_item(LinkButton(extras=extras))
         self.add_item(CancelButton(extras=extras))

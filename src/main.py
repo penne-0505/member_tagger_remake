@@ -9,7 +9,7 @@ from discord.ext import tasks as discord_tasks
 
 from db_manager import TagManager
 from embed_manager import EmbedManager
-from notification_handler import NotificationHandler
+from notification_handler import NotificationHandler, Notification
 from view_manager import TagView1, UntagView1, GetThreadsView1, GetUsersView1, TaskContentInputModal, DeleteTaskViewNext, DeleteTaskViewOnly
 from utils import INFO, ERROR, WARN, DEBUG, SUCCESS, FORMAT, DATEFORMAT, Tag, Task, blue, red, yellow, magenta, green, cyan, bold
 
@@ -31,6 +31,8 @@ class Client(discord.Client):
     ########## discord.py events ##########
     
     async def on_ready(self):
+        await self.notification_handler.send_notification(Notification(client=self, interaction=None, send_to_ch=None, message=None, target_tags=[]))
+        
         # treeコマンドを同期
         if not self.synced:
             await self.sync_commands()
@@ -259,6 +261,7 @@ async def get_tasks(interaction: discord.Interaction):
     
     extras['result'] = {'get_tasks': tasks, 'interaction': interaction}
     
+    # get_taskだけは全員に表示
     await interaction.response.send_message(
         embed=client.embed_manager.get_embed(extras)
     )
@@ -275,7 +278,7 @@ async def help(interaction: discord.Interaction):
 @tree.command(name='invite', description='招待リンクを表示します')
 async def invite(interaction: discord.Interaction):
     url = discord.utils.oauth_url(interaction.application_id, permissions=discord.Permissions(permissions=8))
-    embed = discord.Embed(title='招待リンク', description=url)
+    embed = discord.Embed(title='招待リンク')
     await interaction.response.send_message(ephemeral=True, embed=embed)
 
 if __name__ == '__main__':

@@ -99,7 +99,6 @@ class EmbedManager:
                 for command, description in data.items():
                     formatted_result += f'**{command}**: {description}\n'
         
-        
         return formatted_result
 
 
@@ -265,5 +264,12 @@ class EmbedManager:
                 title='キャンセル',
                 description='キャンセルしました。',
                 color=discord.Color.yellow()
+            )
+            return embed
+
+        elif current_mode == 'invite':
+            embed = discord.Embed(
+                title='リダイレクトが完了しました',
+                color=discord.Color.green()
             )
             return embed
