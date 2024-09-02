@@ -84,7 +84,8 @@ class MemberSelect(discord.ui.UserSelect):
         
         elif 'untag' in list(self.extras.keys()):
             user_ids = selected_user_ids
-            users = [self.extras['untag'].client.get_user(int(user_id)) for user_id in user_ids]
+            users = [self.extras['untag'].client.get_user(int(user_id)) for user_id in user_ids] # オブジェクトに変換
+            users = [user for user in users if not user.bot] # botを除外
             self.extras['untag'].users = users
             tag_manager.remove_tag(self.extras['untag'])
             await interaction.response.edit_message(
@@ -94,6 +95,7 @@ class MemberSelect(discord.ui.UserSelect):
         
         elif 'get_threads_by_user' in list(self.extras.keys()):
             selected_users = [self.extras['get_threads_by_user'].client.get_user(int(user_id)) for user_id in selected_user_ids]
+            selected_users = [user for user in selected_users if not user.bot] # botを除外
             self.extras['get_threads_by_user'].users = selected_users
             result = {'get_threads_by_user': []}
             for user in selected_users:
@@ -147,7 +149,9 @@ class DeadlineInputModal(discord.ui.Modal):
         if 'tag' in list(self.extras.keys()):
             deadline = datetime.datetime.strptime(deadline, '%Y-%m-%d')
             self.extras['tag'].deadline = deadline
+            self.extras['tag'].users = [user for user in self.extras['tag'].users if not user.bot] # botを除外
             tag_manager.add_tag(self.extras['tag'])
+            
             await interaction.response.edit_message(
                 view=None,
                 embed=embed_manager.get_embed(self.extras)
