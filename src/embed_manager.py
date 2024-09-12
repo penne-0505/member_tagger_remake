@@ -100,6 +100,18 @@ class EmbedManager:
                 
                 for command, description in data.items():
                     formatted_result += f'**{command}**: {description}\n'
+            
+            elif mode == 'notification':
+                if not data:
+                    return '通知が存在しませんでした。'
+                
+                # notificationに限り、dataはlist[Tag]で渡されている
+                client = data[0].client # discord.Client
+                for tag in data:
+                    guild = client.get_guild(int(tag.guild_id))
+                    thread = guild.get_thread(int(tag.thread_id))
+                    deadline = tag.deadline
+                    formatted_result += f'- {thread.mention} ({deadline.strftime("%Y/%m/%d")})\n'
         
         return formatted_result
 
@@ -275,3 +287,32 @@ class EmbedManager:
                 color=discord.Color.green()
             )
             return embed
+        
+        elif current_mode == 'notification':
+            result = self.format_result(data['result'])
+            embed = discord.Embed(
+                title='通知',
+                description=result,
+                color=discord.Color.green()
+            )
+            return embed
+        
+        elif current_mode == 'notify':
+            if not data['notify'].thread_id:
+                embed = discord.Embed(
+                    title='チャンネルを選択',
+                    description='通知を送信するチャンネルを選択してください。',
+                    color=discord.Color.blue()
+                )
+                return embed
+
+            elif data['notify']:
+                embed = discord.Embed(
+                    title='完了しました',
+                    description='チャンネルの設定が完了しました。',
+                    color=discord.Color.green()
+                )
+                return embed
+        
+        else:
+            raise ValueError(f'Invalid mode. (mode: {current_mode})\n{data}')

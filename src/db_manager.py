@@ -214,6 +214,30 @@ class TagManager:
         user_data['notification'] = not user_data['notification']
         self.db_manager.update('users', str(user.id), user_data)
         return user_data['notification']
+    
+    def add_notify_channel(self, channel = dict[discord.Guild, discord.TextChannel | discord.Thread | None]):
+        current_data = self.db_manager.get('notify', 'notify_channels')
+        
+        if not current_data:
+            use_set = True
+            current_data = {}
+        
+        for guild, ch in channel.items():
+            current_data[str(guild.id)] = ch.id if ch else None
+        
+        # 存在しないキーのupdateは使用できないため、そのような場合はsetを使用
+        if use_set:
+            self.db_manager.set('notify', 'notify_channels', current_data)
+        else:
+            self.db_manager.update('notify', 'notify_channels', current_data)
+    
+    def get_notify_channel(self) -> dict[str, str | None]: # dict[discord.Guild.id, discord.TextChannel.id | discord.Thread.id | None]
+        return self.db_manager.get('notify', 'notify_channels')
+    
+    def delete_notify_channel(self, guild: discord.Guild):
+        current_data = self.db_manager.get('notify', 'notify_channels')
+        current_data.pop(str(guild.id))
+        self.db_manager.update('notify', 'notify_channels', current_data)
 
 
 if __name__ == '__main__':

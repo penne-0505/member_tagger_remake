@@ -12,7 +12,7 @@ from discord.ext import tasks as discord_tasks
 from db_manager import TagManager
 from embed_manager import EmbedManager
 from notification_handler import NotificationHandler, Notification
-from view_manager import TagView1, UntagView1, GetThreadsView1, GetUsersView1, TaskContentInputModal, DeleteTaskViewNext, DeleteTaskViewOnly
+from view_manager import TagView1, UntagView1, GetThreadsView1, GetUsersView1, TaskContentInputModal, DeleteTaskViewNext, DeleteTaskViewOnly, NotifyView1, ChangeNotifyFreqModal
 from utils import INFO, ERROR, WARN, DEBUG, SUCCESS, FORMAT, DATEFORMAT, Tag, Task, blue, red, yellow, magenta, green, cyan, bold
 
 
@@ -33,7 +33,6 @@ class Client(discord.Client):
     ########## discord.py events ##########
     
     async def on_ready(self):
-        await self.notification_handler.send_notification(Notification(client=self, interaction=None, send_to_ch=None, message=None, target_tags=[]))
         
         # treeコマンドを同期
         if not self.synced:
@@ -130,30 +129,29 @@ class Client(discord.Client):
         logging.info(INFO + 'Presence set at ' + now)
     
     ########## notify ##########
-    notify_freq = 24 # 通知頻度(時間) (将来的にはdiscord上で変更できるようにする(?))
+    notify_freq = 24 # 通知頻度(時間) (将来的にはdiscord上で変更できるようにする(?)) <- guildごとにループを回すのは現実的でないのでなし？
     @discord_tasks.loop(hours=notify_freq)
     async def notify(self):
-        # すべてのユーザー、スレッド、期限を取得して、通知を送る
-        for user in self.tag_manager.get_all_users():
-            user_obj = self.get_user(user['user_id'])
-            if not user_obj:
+        guilds = self.guilds
+
+        for guild in guilds:
+            notify_ch_id = self.tag_manager.get_notify_channel(guild.id)
+            notify_ch = guild.get_channel(notify_ch_id)
+            
+            if not notify_ch:
                 continue
             
-            threads = self.tag_manager.get_threads_by_user([user_obj])
-            for guild_id in list(threads.keys()):
-                guild = self.get_guild(int(guild_id))
-                if not guild:
-                    continue
-                
-                for thread_data in threads[guild_id]:
-                    thread_id, deadline = thread_data
-                    thread = guild.get_channel(int(thread_id))
-                    if not thread:
-                        continue
-                    
-                    await self.notification_handler.send_notification(user_obj, thread, deadline)
+            await self.notification_handler.send_notification(
+                Notification(
+                    client=self,
+                    interaction=None, 
+                    send_to_ch={guild: notify_ch},
+                    message=None, # 未実装
+                    target_tags=[]
+                )
+            )
         
-        return
+        logging.info(INFO + 'Notification sent.')
 
 
 client = Client()
@@ -277,10 +275,26 @@ async def help(interaction: discord.Interaction):
         embed=client.embed_manager.get_embed({'result': all_commmands})
     )
 
+# !! コマンド内でembedを作成してるやつ
 @tree.command(name='invite', description='招待リンクを表示します')
 async def invite(interaction: discord.Interaction):
-    url = discord.utils.oauth_url(interaction.application_id, permissions=discord.Permissions(permissions=8))
     embed = discord.Embed(title='招待リンク')
+    await interaction.response.send_message(ephemeral=True, embed=embed)
+
+@tree.command(name='set_notify_channel', description='通知を送るチャンネルを設定します')
+async def set_notify_channel(interaction: discord.Interaction):
+    extras = {'notify': Tag(client=client, guild_id=interaction.guild_id)}
+    await interaction.response.send_message(
+        ephemeral=True,
+        view=NotifyView1(extras=extras),
+        embed=client.embed_manager.get_embed(extras)
+    )
+
+# !! コマンド内でembedを作成してるやつ
+@tree.command(name='delete_notify_channel', description='通知を送るチャンネルを削除します')
+async def delete_notify_channel(interaction: discord.Interaction):
+    client.tag_manager.delete_notify_channel(interaction.guild)
+    embed = discord.Embed(title='削除完了', description='通知チャンネルを削除しました。\n通知を受け取るには再度設定を行ってください。')
     await interaction.response.send_message(ephemeral=True, embed=embed)
 
 if __name__ == '__main__':

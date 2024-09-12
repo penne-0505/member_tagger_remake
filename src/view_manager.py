@@ -64,6 +64,29 @@ class ThreadsSelect(discord.ui.ChannelSelect):
                 embed=embed_manager.get_embed(self.extras)
             )
 
+class NotifyChannelSelect(discord.ui.ChannelSelect):
+    def __init__(self, extras: dict[str, Tag] | None = None):
+        super().__init__(
+            placeholder='通知するチャンネルを選択してください',
+            min_values=1,
+            max_values=1,
+            channel_types=[discord.ChannelType.text],
+        )
+        self.extras = extras
+    
+    async def callback(self, interaction: discord.Interaction):
+        selected_channel = interaction.data['values']
+        
+        if 'notify' in list(self.extras.keys()):
+            self.extras['notify'].thread_id = selected_channel[0] # thread_idだけど、例外的にchannel_idを挿入
+            guild = interaction.guild
+            selected_channel = guild.get_channel(int(selected_channel[0]))
+            self.extras['notify'].client.tag_manager.add_notify_channel({guild: selected_channel})
+            await interaction.response.edit_message(
+                view=None,
+                embed=embed_manager.get_embed(self.extras)
+            )
+
 class MemberSelect(discord.ui.UserSelect):
     def __init__(self, extras: dict[str, Tag] | None = None):
         super().__init__(
@@ -190,6 +213,7 @@ class TaskContentInputModal(discord.ui.Modal):
                 embed=embed_manager.get_embed(self.extras)
             )
 
+
 class TaskSelect(discord.ui.Select):
     def __init__(self, extras: dict[str, Task | list[Task]] | None = None):
         self.extras = extras
@@ -242,6 +266,7 @@ class TaskSelect(discord.ui.Select):
                 view=None,
                 embed=embed_manager.get_embed(self.extras)
             )
+
 
 
 class ConfimButton(discord.ui.Button):
@@ -418,4 +443,13 @@ class InviteView1(discord.ui.View):
     def __init__(self, extras: dict[str, Tag] | None = None):
         super().__init__()
         self.add_item(LinkButton(extras=extras))
+        self.add_item(CancelButton(extras=extras))
+
+
+########## notify ##########
+
+class NotifyView1(discord.ui.View):
+    def __init__(self, extras: dict[str, Tag] | None = None):
+        super().__init__()
+        self.add_item(NotifyChannelSelect(extras=extras))
         self.add_item(CancelButton(extras=extras))
