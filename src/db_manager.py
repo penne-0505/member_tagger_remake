@@ -216,6 +216,7 @@ class TagManager:
         return user_data['notification']
     
     def add_notify_channel(self, channel = dict[discord.Guild, discord.TextChannel | discord.Thread | None]):
+        use_set = False
         current_data = self.db_manager.get('notify', 'notify_channels')
         
         if not current_data:
