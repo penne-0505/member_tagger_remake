@@ -12,7 +12,7 @@ from discord.ext import tasks as discord_tasks
 from db_manager import TagManager
 from embed_manager import EmbedManager
 from notification_handler import NotificationHandler, Notification
-from view_manager import TagView1, UntagView1, GetThreadsView1, GetUsersView1, TaskContentInputModal, DeleteTaskViewNext, DeleteTaskViewOnly, NotifyView1, ChangeNotifyFreqModal
+from view_manager import TagView1, UntagView1, GetThreadsView1, GetUsersView1, TaskContentInputModal, DeleteTaskViewNext, DeleteTaskViewOnly, NotifyView1
 from utils import INFO, ERROR, WARN, DEBUG, SUCCESS, FORMAT, DATEFORMAT, Tag, Task, blue, red, yellow, magenta, green, cyan, bold
 
 
