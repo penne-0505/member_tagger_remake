@@ -232,8 +232,8 @@ class TagManager:
         else:
             self.db_manager.update('notify', 'notify_channels', current_data)
     
-    def get_notify_channel(self) -> dict[str, str | None]: # dict[discord.Guild.id, discord.TextChannel.id | discord.Thread.id | None]
-        return self.db_manager.get('notify', 'notify_channels')
+    def get_notify_channel(self, guild_id: str) -> dict[str, str | None]: # dict[discord.Guild.id, discord.TextChannel.id | discord.Thread.id | None]
+        return self.db_manager.get('notify', 'notify_channels')[guild_id]
     
     def delete_notify_channel(self, guild: discord.Guild):
         current_data = self.db_manager.get('notify', 'notify_channels')
