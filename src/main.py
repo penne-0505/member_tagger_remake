@@ -118,7 +118,7 @@ class Client(discord.Client):
     # 30分ごとにプレゼンスを更新 (更新自体は必要ないが、一部サービスでのスリープを回避するため)
     @discord_tasks.loop(minutes=30)
     async def set_presence(self):
-        now = datetime.datetime.now()
+        now = datetime.datetime.now(tz=datetime.timezone(datetime.timedelta(hours=9))) # JST
         now = now.strftime('%Y/%m/%d %H:%M') # 例: 2021/08/01 12:34
         
         activity = discord.Game(name=f'{now}')
