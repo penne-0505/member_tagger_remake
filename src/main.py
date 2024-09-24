@@ -162,11 +162,11 @@ tree = discord.app_commands.CommandTree(client)
 async def ping(interaction: discord.Interaction):
     await interaction.response.send_message('**pong!** 🏓', ephemeral=True)
 
-@tree.command(name='change_notify_freq', description='通知頻度を変更します')
+@tree.command(name='通知頻度変更', description='通知頻度を変更します')
 async def change_notify_freq(interaction: discord.Interaction):
     await interaction.response.send_message('このコマンドは未実装です', ephemeral=True)
 
-@tree.command(name='tag', description='ユーザーを指定したスレッドにタグ付けします')
+@tree.command(name='タグ付け', description='ユーザーを指定したスレッドにタグ付けします')
 async def tag(interaction: discord.Interaction):
     extras = {'tag': Tag(client=client, guild_id=interaction.guild_id)}
     await interaction.response.send_message(
@@ -175,7 +175,7 @@ async def tag(interaction: discord.Interaction):
         embed=client.embed_manager.get_embed(extras)
     )
 
-@tree.command(name='untag', description='ユーザーからタグ付けを解除します')
+@tree.command(name='タグ付け解除', description='ユーザーからタグ付けを解除します')
 async def untag(interaction: discord.Interaction):
     extras = {'untag': Tag(client=client, guild_id=interaction.guild_id)}
     await interaction.response.send_message(
@@ -184,7 +184,7 @@ async def untag(interaction: discord.Interaction):
         embed=client.embed_manager.get_embed(extras)
     )
 
-@tree.command(name='get_threads_by_user', description='指定したユーザーがタグ付けされているスレッドを取得します')
+@tree.command(name='ユーザーでスレッド取得', description='指定したユーザーがタグ付けされているスレッドを取得します')
 async def get_threads_by_user(interaction: discord.Interaction):
     extras = {'get_threads_by_user': Tag(client=client)}
     await interaction.response.send_message(
@@ -193,7 +193,7 @@ async def get_threads_by_user(interaction: discord.Interaction):
         embed=client.embed_manager.get_embed(extras)
     )
 
-@tree.command(name='get_users_by_thread', description='指定したスレッドにタグ付けされているユーザーを取得します')
+@tree.command(name='スレッドでユーザー取得', description='指定したスレッドにタグ付けされているユーザーを取得します')
 async def get_users_by_thread(interaction: discord.Interaction):
     extras = {'get_users_by_thread': Tag(client=client)}
     await interaction.response.send_message(
@@ -202,7 +202,7 @@ async def get_users_by_thread(interaction: discord.Interaction):
         embed=client.embed_manager.get_embed(extras)
     )
 
-@tree.command(name='get_all', description='全てのタグを取得します')
+@tree.command(name='タグをすべて取得', description='全てのタグを取得します')
 async def get_all(interaction: discord.Interaction):
     result = []
     for user in client.tag_manager.get_all_users():
@@ -221,7 +221,7 @@ async def get_all(interaction: discord.Interaction):
         embed=client.embed_manager.get_embed(extras)
     )
 
-@tree.command(name='toggle_notification', description='通知のON/OFFを切り替えます')
+@tree.command(name='通知[ON/OFF]切り替え', description='通知のON/OFFを切り替えます')
 async def toggle_notification(interaction: discord.Interaction):
     current_notification = client.tag_manager.toggle_notification(interaction.user)
     extras = {'toggle_notification': Tag(client=client), 'current_notification': current_notification}
@@ -230,12 +230,12 @@ async def toggle_notification(interaction: discord.Interaction):
         embed=client.embed_manager.get_embed(extras)
     )
 
-@tree.command(name='add_task', description='タスクを追加します')
+@tree.command(name='タスク追加', description='タスクを追加します')
 async def add_task(interaction: discord.Interaction):
     extras = {'add_task': Task(client=client, user=interaction.user)}
     await interaction.response.send_modal(TaskContentInputModal(extras=extras))
 
-@tree.command(name='delete_task', description='タスクを削除します')
+@tree.command(name='タスク削除', description='タスクを削除します')
 async def detele_task(interaction: discord.Interaction):
     extras = {'delete_task': Task(client=client, user=interaction.user)}
     tasks = client.tag_manager.get_tasks(extras['delete_task'])
@@ -253,7 +253,7 @@ async def detele_task(interaction: discord.Interaction):
         embed=client.embed_manager.get_embed(extras)
     )
 
-@tree.command(name='get_task', description='タスクを取得します')
+@tree.command(name='タスク取得', description='タスクを取得します')
 async def get_tasks(interaction: discord.Interaction):
     extras = {'get_tasks': Task(client=client, user=interaction.user)}
     tasks = client.tag_manager.get_tasks(extras['get_tasks'])
@@ -276,12 +276,12 @@ async def help(interaction: discord.Interaction):
     )
 
 # !! コマンド内でembedを作成してるやつ
-@tree.command(name='invite', description='招待リンクを表示します')
+@tree.command(name='招待リンク', description='招待リンクを表示します')
 async def invite(interaction: discord.Interaction):
     embed = discord.Embed(title='招待リンク')
     await interaction.response.send_message(ephemeral=True, embed=embed)
 
-@tree.command(name='set_notify_channel', description='通知を送るチャンネルを設定します')
+@tree.command(name='通知送信チャンネルの設定', description='通知を送るチャンネルを設定します')
 async def set_notify_channel(interaction: discord.Interaction):
     extras = {'notify': Tag(client=client, guild_id=interaction.guild_id)}
     await interaction.response.send_message(
@@ -291,7 +291,7 @@ async def set_notify_channel(interaction: discord.Interaction):
     )
 
 # !! コマンド内でembedを作成してるやつ
-@tree.command(name='delete_notify_channel', description='通知を送るチャンネルを削除します')
+@tree.command(name='通知送信チャンネルの設定削除', description='通知を送るチャンネルの設定を削除します(チャンネル自体は削除されません)')
 async def delete_notify_channel(interaction: discord.Interaction):
     client.tag_manager.delete_notify_channel(interaction.guild)
     embed = discord.Embed(title='削除完了', description='通知チャンネルを削除しました。\n通知を受け取るには再度設定を行ってください。')
