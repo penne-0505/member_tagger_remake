@@ -14,7 +14,7 @@ from db_manager import TagManager
 from embed_manager import EmbedManager
 from notification_handler import NotificationHandler, Notification
 from view_manager import TagView1, UntagView1, GetThreadsView1, GetUsersView1, TaskContentInputModal, DeleteTaskViewNext, DeleteTaskViewOnly, NotifyView1
-from utils import INFO, ERROR, WARN, DEBUG, SUCCESS, FORMAT, DATEFORMAT, Tag, Task, blue, red, yellow, magenta, green, cyan, bold
+from utils import INFO, ERROR, WARN, DEBUG, SUCCESS, FORMAT, DATEFORMAT, Tag, Task, CommandsTranslator, blue, red, yellow, magenta, green, cyan, bold
 
 
 # intents(権限のようなもの)を全て有効化
@@ -69,6 +69,9 @@ class Client(discord.Client):
         logging.info(SUCCESS + bold('Commands synced.'))
         self.synced = True
         return
+
+    async def setup_hook(self) -> None:
+        await tree.set_translator(CommandsTranslator())
     
     async def guild_member_sync(self, guilds: list[discord.Guild]):
         all_members = []
@@ -159,15 +162,15 @@ client = Client()
 tree = discord.app_commands.CommandTree(client)
 
 
-@tree.command(name=locale_str(name='ping', message='ping', extras={"ja": 'ping'}), description='for testing')
+@tree.command(name=locale_str(message='ping'), description='for testing')
 async def ping(interaction: discord.Interaction):
     await interaction.response.send_message('**pong!** 🏓', ephemeral=True)
 
-@tree.command(name=locale_str(name='change_notify_freq', message='change_notify_freq', extras={"ja": '通知頻度の変更'}), description='通知頻度を変更します')
+@tree.command(name=locale_str(message='change_notify_freq'), description='通知頻度を変更します')
 async def change_notify_freq(interaction: discord.Interaction):
     await interaction.response.send_message('このコマンドは未実装です', ephemeral=True)
 
-@tree.command(name=locale_str(name='tag', message='tag', extras={"ja": 'タグ付け'}), description='ユーザーを指定したスレッドにタグ付けします',)
+@tree.command(name=locale_str(message='tag'), description='ユーザーを指定したスレッドにタグ付けします',)
 async def tag(interaction: discord.Interaction):
     extras = {'tag': Tag(client=client, guild_id=interaction.guild_id)}
     await interaction.response.send_message(
@@ -176,7 +179,7 @@ async def tag(interaction: discord.Interaction):
         embed=client.embed_manager.get_embed(extras)
     )
 
-@tree.command(name=locale_str(name='untag', message='untag', extras={"ja": 'タグ解除'}), description='ユーザーからタグ付けを解除します')
+@tree.command(name=locale_str(message='untag'), description='ユーザーからタグ付けを解除します')
 async def untag(interaction: discord.Interaction):
     extras = {'untag': Tag(client=client, guild_id=interaction.guild_id)}
     await interaction.response.send_message(
@@ -185,7 +188,7 @@ async def untag(interaction: discord.Interaction):
         embed=client.embed_manager.get_embed(extras)
     )
 
-@tree.command(name=locale_str(name='get_threads_by_user', message='get_threads_by_user', extras={"ja": 'ユーザーからスレッド取得'}), description='指定したユーザーがタグ付けされているスレッドを取得します')
+@tree.command(name=locale_str(message='get_threads_by_user'), description='指定したユーザーがタグ付けされているスレッドを取得します')
 async def get_threads_by_user(interaction: discord.Interaction):
     extras = {'get_threads_by_user': Tag(client=client)}
     await interaction.response.send_message(
@@ -194,7 +197,7 @@ async def get_threads_by_user(interaction: discord.Interaction):
         embed=client.embed_manager.get_embed(extras)
     )
 
-@tree.command(name=locale_str(name='get_users_by_thread', message='get_users_by_thread', extras={"ja": 'スレッドからユーザー取得'}), description='指定したスレッドにタグ付けされているユーザーを取得します')
+@tree.command(name=locale_str(message='get_users_by_thread'), description='指定したスレッドにタグ付けされているユーザーを取得します')
 async def get_users_by_thread(interaction: discord.Interaction):
     extras = {'get_users_by_thread': Tag(client=client)}
     await interaction.response.send_message(
@@ -203,7 +206,7 @@ async def get_users_by_thread(interaction: discord.Interaction):
         embed=client.embed_manager.get_embed(extras)
     )
 
-@tree.command(name=locale_str(name='get_all', message='get_all', extras={"ja": '全タグ取得'}), description='全てのタグを取得します')
+@tree.command(name=locale_str(message='get_all'), description='全てのタグを取得します')
 async def get_all(interaction: discord.Interaction):
     result = []
     for user in client.tag_manager.get_all_users():
@@ -222,7 +225,7 @@ async def get_all(interaction: discord.Interaction):
         embed=client.embed_manager.get_embed(extras)
     )
 
-@tree.command(name=locale_str(name='toggle_notification', message='toggle_notification', extras={"ja": '通知の切替'}), description='通知のON/OFFを切り替えます')
+@tree.command(name=locale_str(message='toggle_notification'), description='通知のON/OFFを切り替えます')
 async def toggle_notification(interaction: discord.Interaction):
     current_notification = client.tag_manager.toggle_notification(interaction.user)
     extras = {'toggle_notification': Tag(client=client), 'current_notification': current_notification}
@@ -231,12 +234,12 @@ async def toggle_notification(interaction: discord.Interaction):
         embed=client.embed_manager.get_embed(extras)
     )
 
-@tree.command(name=locale_str(name='add_task', message='add_task', extras={"ja": 'タスク追加'}), description='タスクを追加します')
+@tree.command(name=locale_str(message='add_task'), description='タスクを追加します')
 async def add_task(interaction: discord.Interaction):
     extras = {'add_task': Task(client=client, user=interaction.user)}
     await interaction.response.send_modal(TaskContentInputModal(extras=extras))
 
-@tree.command(name=locale_str(name='delete_task', message='delete_task', extras={"ja": 'タスク削除'}), description='タスクを削除します')
+@tree.command(name=locale_str(message='delete_task'), description='タスクを削除します')
 async def delete_task(interaction: discord.Interaction):
     extras = {'delete_task': Task(client=client, user=interaction.user)}
     tasks = client.tag_manager.get_tasks(extras['delete_task'])
@@ -254,7 +257,7 @@ async def delete_task(interaction: discord.Interaction):
         embed=client.embed_manager.get_embed(extras)
     )
 
-@tree.command(name=locale_str(name='get_task', message='get_task', extras={"ja": 'タスク取得'}), description='タスクを取得します')
+@tree.command(name=locale_str(message='get_tasks'), description='タスクを取得します')
 async def get_tasks(interaction: discord.Interaction):
     extras = {'get_tasks': Task(client=client, user=interaction.user)}
     tasks = client.tag_manager.get_tasks(extras['get_tasks'])
@@ -267,7 +270,7 @@ async def get_tasks(interaction: discord.Interaction):
         embed=client.embed_manager.get_embed(extras)
     )
 
-@tree.command(name=locale_str(name='help', message='help', extras={"ja": 'ヘルプ'}), description='ヘルプを表示します')
+@tree.command(name=locale_str(message='help'), description='ヘルプを表示します')
 async def help(interaction: discord.Interaction):
     all_commmands = tree.walk_commands()
 
@@ -276,12 +279,12 @@ async def help(interaction: discord.Interaction):
         embed=client.embed_manager.get_embed({'result': all_commmands})
     )
 
-@tree.command(name=locale_str(name='invite', message='invite', extras={"ja": '招待リンク'}), description='招待リンクを表示します')
+@tree.command(name=locale_str(message='invite'), description='招待リンクを表示します')
 async def invite(interaction: discord.Interaction):
     embed = discord.Embed(title='招待リンク')
     await interaction.response.send_message(ephemeral=True, embed=embed)
 
-@tree.command(name=locale_str(name='set_notify_channel', message='set_notify_channel', extras={"ja": '通知チャンネル設定'}), description='通知を送るチャンネルを設定します')
+@tree.command(name=locale_str(message='set_notify_channel'), description='通知を送るチャンネルを設定します')
 async def set_notify_channel(interaction: discord.Interaction):
     extras = {'notify': Tag(client=client, guild_id=interaction.guild_id)}
     await interaction.response.send_message(
@@ -290,7 +293,7 @@ async def set_notify_channel(interaction: discord.Interaction):
         embed=client.embed_manager.get_embed(extras)
     )
 
-@tree.command(name=locale_str(name='delete_notify_channel', message='delete_notify_channel', extras={"ja": '通知チャンネル解除'}), description='通知を送るチャンネルを削除します')
+@tree.command(name=locale_str(message='delete_notify_channel'), description='通知を送るチャンネルを削除します')
 async def delete_notify_channel(interaction: discord.Interaction):
     client.tag_manager.delete_notify_channel(interaction.guild)
     embed = discord.Embed(title='削除完了', description='通知チャンネルを削除しました。\n通知を受け取るには再度設定を行ってください。')
