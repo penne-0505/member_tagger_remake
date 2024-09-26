@@ -111,7 +111,7 @@ class CommandsTranslator(discord.app_commands.Translator):
             },
         }
         
-        if string.message in command_names[locale]:
-            return command_names[locale][context.name]
+        if locale.value in command_names and string.message in command_names[locale.value]:
+            return command_names[locale.value][string.message]
         
         return None
