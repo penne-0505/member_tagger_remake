@@ -91,7 +91,24 @@ class CommandsTranslator(discord.app_commands.Translator):
                 'add_task': 'タスクの追加',
                 'delete_task': 'タスクの削除',
                 'get_tasks': 'タスクの取得',
-            }
+            },
+            'en-US': {
+                'ping': 'ping',
+                'help': 'help',
+                'tag': 'tag',
+                'untag': 'untag',
+                'get_threads_by_user': 'get_threads_by_user',
+                'get_users_by_thread': 'get_users_by_thread',
+                'get_all': 'get_all',
+                'change_notify_freq': 'change_notify_freq',
+                'invite': 'invite',
+                'set_notify_channel': 'set_notify_channel',
+                'delete_notify_channel': 'delete_notify_channel',
+                'toggle_notification': 'toggle_notification',
+                'add_task': 'add_task',
+                'delete_task': 'delete_task',
+                'get_tasks': 'get_tasks',
+            },
         }
         
         if context.name in command_names[locale]:
