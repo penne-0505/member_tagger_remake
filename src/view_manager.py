@@ -155,7 +155,7 @@ class MemberSelect(discord.ui.UserSelect):
 
 class DeadlineInputModal(discord.ui.Modal):
     raw_deadline = discord.ui.TextInput(
-        placeholder='例: 2020-01-01',
+        placeholder='例: 3 (3日後)',
         label='期限',
         style=discord.TextStyle.short,
         min_length=1,
@@ -170,7 +170,8 @@ class DeadlineInputModal(discord.ui.Modal):
         deadline = self.raw_deadline.value
         
         if 'tag' in list(self.extras.keys()):
-            deadline = datetime.datetime.strptime(deadline, '%Y-%m-%d')
+            now = datetime.datetime.now()
+            deadline = now + datetime.timedelta(days=int(deadline))
             self.extras['tag'].deadline = deadline
             self.extras['tag'].users = [user for user in self.extras['tag'].users if not user.bot] # botを除外
             tag_manager.add_tag(self.extras['tag'])
@@ -180,8 +181,10 @@ class DeadlineInputModal(discord.ui.Modal):
                 embed=embed_manager.get_embed(self.extras)
             )
         
+        # 今のところ未使用
         elif 'add_task' in list(self.extras.keys()):
-            deadline = datetime.datetime.strptime(deadline, '%Y-%m-%d')
+            now = datetime.datetime.now()
+            deadline = now + datetime.timedelta(days=int(deadline))
             self.extras['add_task'].deadline = deadline
             await interaction.response.send_message(
                 view=None,
