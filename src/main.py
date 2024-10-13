@@ -1,4 +1,4 @@
-# main.py: 
+# main.py:
 
 import asyncio
 import datetime
@@ -13,8 +13,35 @@ from discord.ext import tasks as discord_tasks
 from db_manager import TagManager
 from embed_manager import EmbedManager
 from notification_handler import NotificationHandler, Notification
-from view_manager import TagView1, UntagView1, GetThreadsView1, GetUsersView1, TaskContentInputModal, DeleteTaskViewNext, DeleteTaskViewOnly, NotifyView1
-from utils import INFO, ERROR, WARN, DEBUG, SUCCESS, FORMAT, DATEFORMAT, Tag, Task, CommandsTranslator, blue, red, yellow, magenta, green, cyan, bold
+from view_manager import (
+    TagView1,
+    UntagView1,
+    GetThreadsView1,
+    GetUsersView1,
+    TaskContentInputModal,
+    DeleteTaskViewNext,
+    DeleteTaskViewOnly,
+    NotifyView1,
+)
+from utils import (
+    INFO,
+    ERROR,
+    WARN,
+    DEBUG,
+    SUCCESS,
+    FORMAT,
+    DATEFORMAT,
+    Tag,
+    Task,
+    CommandsTranslator,
+    blue,
+    red,
+    yellow,
+    magenta,
+    green,
+    cyan,
+    bold,
+)
 
 
 # intents(権限のようなもの)を全て有効化
@@ -30,110 +57,129 @@ class Client(discord.Client):
         self.tag_manager = TagManager()
         self.embed_manager = EmbedManager()
         self.notification_handler = NotificationHandler(self)
-    
+
     ########## discord.py events ##########
-    
+
     async def on_ready(self):
-        
         # treeコマンドを同期
         if not self.synced:
             await self.sync_commands()
-        
+
         guilds = self.guilds
         # ギルドメンバーを同期
         await self.guild_member_sync(guilds)
-        
+
         self.set_presence.start()
-        
+
         # logging
-        logging.info(INFO + f'Logged in as {green(self.user.name)} ({blue(self.user.id)})')
-        logging.info(INFO + f'Connected to {green(len(guilds))} guilds')
-        logging.info(INFO + bold('Bot is ready.'))
-        
+        logging.info(
+            INFO + f"Logged in as {green(self.user.name)} ({blue(self.user.id)})"
+        )
+        logging.info(INFO + f"Connected to {green(len(guilds))} guilds")
+        logging.info(INFO + bold("Bot is ready."))
+
         # 毎日0時に通知
         until_notify = await self.calc_until_notify()
         await asyncio.sleep(until_notify)
         self.notify.start()
-    
+
     async def on_guild_join(self, guild: discord.Guild):
         # ギルドメンバーを同期
         await self.guild_member_sync([guild])
-    
+
     ########## my functions ##########
-    
+
     async def sync_commands(self):
         if self.synced:
             return
         # treeコマンドを同期
         await tree.sync()
-        logging.info(SUCCESS + bold('Commands synced.'))
+        logging.info(SUCCESS + bold("Commands synced."))
         self.synced = True
         return
 
     async def setup_hook(self) -> None:
         await tree.set_translator(CommandsTranslator())
-    
+
     async def guild_member_sync(self, guilds: list[discord.Guild]):
         all_members = []
-        
+
         for guild in guilds:
             # ギルドメンバーを取得してタグマネージャーにセット
             guild_members = guild.fetch_members(limit=None)
             guild_members = [member async for member in guild_members if not member.bot]
             all_members.extend(guild_members)
-        
+
         # memberのidからMemberをUserに変換してタグマネージャーにセット
         current_users_raw = self.tag_manager.get_all_users()
-        current_users_id = [user['user_id'] for user in current_users_raw]
+        current_users_id = [user["user_id"] for user in current_users_raw]
         current_users = [self.get_user(user_id) for user_id in current_users_id]
         all_members = [self.get_user(member.id) for member in all_members]
         target_users = [member for member in all_members if member not in current_users]
 
         # logging
-        msg = INFO + bold('New users: ') + green(', '.join([user.name for user in target_users])) if target_users else INFO + bold('No new users.')
+        msg = (
+            INFO
+            + bold("New users: ")
+            + green(", ".join([user.name for user in target_users]))
+            if target_users
+            else INFO + bold("No new users.")
+        )
         logging.info(msg)
 
         # タグマネージャーにセット
         for user in target_users:
             self.tag_manager.add_user(user)
-    
+
     # 通知までの時間を計算
     async def calc_until_notify(self) -> float:
-        tz = datetime.timezone(datetime.timedelta(hours=9)) # JST
+        tz = datetime.timezone(datetime.timedelta(hours=9))  # JST
         today = datetime.datetime.now(tz).date()
         now = datetime.datetime.now(tz)
         midnight = datetime.datetime.combine(today, datetime.time(0, 0, 0, 0), tz)
-        until_notify = midnight + datetime.timedelta(days=1) - now # 今日の0時からの残り時間
+        until_notify = (
+            midnight + datetime.timedelta(days=1) - now
+        )  # 今日の0時からの残り時間
         total_seconds = until_notify.total_seconds()
-        logging.info(INFO + f'Until notify: {blue(int(total_seconds))}seconds')
+        logging.info(INFO + f"Until notify: {blue(int(total_seconds))}seconds")
         return total_seconds
 
     # コマンド実行時のログ
-    async def on_app_command_completion(self, interaction: discord.Interaction, command: app_commands.Command | app_commands.ContextMenu):
+    async def on_app_command_completion(
+        self,
+        interaction: discord.Interaction,
+        command: app_commands.Command | app_commands.ContextMenu,
+    ):
         # 装飾してログを出力
-        exec_guild = yellow(interaction.guild) if interaction.guild else 'DM'
-        exec_channel = magenta(interaction.channel) if interaction.channel else '(DM)'
+        exec_guild = yellow(interaction.guild) if interaction.guild else "DM"
+        exec_channel = magenta(interaction.channel) if interaction.channel else "(DM)"
         exec_user = interaction.user
         user_name = blue(exec_user.name)
         user_id = blue(exec_user.id)
         exec_command = green(command.name)
-        logging.info(INFO + f'Command executed by {user_name}({user_id}): {exec_command} in {exec_guild}({exec_channel})')
-    
+        logging.info(
+            INFO
+            + f"Command executed by {user_name}({user_id}): {exec_command} in {exec_guild}({exec_channel})"
+        )
+
     # 30分ごとにプレゼンスを更新 (更新自体は必要ないが、一部サービスでのスリープを回避するため)
     @discord_tasks.loop(minutes=30)
     async def set_presence(self):
-        now = datetime.datetime.now(tz=datetime.timezone(datetime.timedelta(hours=9))) # JST
-        now = now.strftime('%Y/%m/%d %H:%M') # 例: 2021/08/01 12:34
-        
-        activity = discord.Game(name=f'{now}')
+        now = datetime.datetime.now(
+            tz=datetime.timezone(datetime.timedelta(hours=9))
+        )  # JST
+        now = now.strftime("%Y/%m/%d %H:%M")  # 例: 2021/08/01 12:34
+
+        activity = discord.Game(name=f"{now}")
         await self.change_presence(activity=activity)
         await self.sync_commands()
-        
+
         now = magenta(now)
-        logging.info(INFO + 'Presence set at ' + now)
-    
+        logging.info(INFO + "Presence set at " + now)
+
     ########## notify ##########
-    notify_freq = 24 # 通知頻度(時間) (将来的にはdiscord上で変更できるようにする(?)) <- guildごとにループを回すのは現実的でないのでなし？
+    notify_freq = 24  # 通知頻度(時間) (将来的にはdiscord上で変更できるようにする(?)) <- guildごとにループを回すのは現実的でないのでなし？
+
     @discord_tasks.loop(hours=notify_freq)
     async def notify(self):
         guilds = self.guilds
@@ -141,163 +187,205 @@ class Client(discord.Client):
         for guild in guilds:
             notify_ch_id = self.tag_manager.get_notify_channel(guild.id)
             notify_ch = guild.get_channel(notify_ch_id)
-            
+
             if not notify_ch:
                 continue
-            
+
             await self.notification_handler.send_notification(
                 Notification(
                     client=self,
-                    interaction=None, 
+                    interaction=None,
                     send_to_ch={guild: notify_ch},
-                    message=None, # 未実装
-                    target_tags=[]
+                    message=None,  # 未実装
+                    target_tags=[],
                 )
             )
-        
-        logging.info(INFO + 'Notification sent.')
+
+        logging.info(INFO + "Notification sent.")
 
 
 client = Client()
 tree = discord.app_commands.CommandTree(client)
 
 
-@tree.command(name=locale_str('ping'), description='for testing')
+@tree.command(name=locale_str("ping"), description="for testing")
 async def ping(interaction: discord.Interaction):
-    await interaction.response.send_message('**pong!** 🏓', ephemeral=True)
+    await interaction.response.send_message("**pong!** 🏓", ephemeral=True)
 
-@tree.command(name=locale_str('change_notify_freq'), description='通知頻度を変更します')
+
+@tree.command(name=locale_str("change_notify_freq"), description="通知頻度を変更します")
 async def change_notify_freq(interaction: discord.Interaction):
-    await interaction.response.send_message('このコマンドは未実装です', ephemeral=True)
+    await interaction.response.send_message("このコマンドは未実装です", ephemeral=True)
 
-@tree.command(name=locale_str('tag'), description='ユーザーを指定したスレッドにタグ付けします',)
+
+@tree.command(
+    name=locale_str("tag"),
+    description="ユーザーを指定したスレッドにタグ付けします",
+)
 async def tag(interaction: discord.Interaction):
-    extras = {'tag': Tag(client=client, guild_id=interaction.guild_id)}
+    extras = {"tag": Tag(client=client, guild_id=interaction.guild_id)}
     await interaction.response.send_message(
         ephemeral=True,
         view=TagView1(extras=extras),
-        embed=client.embed_manager.get_embed(extras)
+        embed=client.embed_manager.get_embed(extras),
     )
 
-@tree.command(name=locale_str('untag'), description='ユーザーからタグ付けを解除します')
+
+@tree.command(name=locale_str("untag"), description="ユーザーからタグ付けを解除します")
 async def untag(interaction: discord.Interaction):
-    extras = {'untag': Tag(client=client, guild_id=interaction.guild_id)}
+    extras = {"untag": Tag(client=client, guild_id=interaction.guild_id)}
     await interaction.response.send_message(
         ephemeral=True,
         view=UntagView1(extras=extras),
-        embed=client.embed_manager.get_embed(extras)
+        embed=client.embed_manager.get_embed(extras),
     )
 
-@tree.command(name=locale_str('get_threads_by_user'), description='指定したユーザーがタグ付けされているスレッドを取得します')
+
+@tree.command(
+    name=locale_str("get_threads_by_user"),
+    description="指定したユーザーがタグ付けされているスレッドを取得します",
+)
 async def get_threads_by_user(interaction: discord.Interaction):
-    extras = {'get_threads_by_user': Tag(client=client)}
+    extras = {"get_threads_by_user": Tag(client=client)}
     await interaction.response.send_message(
         ephemeral=True,
         view=GetThreadsView1(extras=extras),
-        embed=client.embed_manager.get_embed(extras)
+        embed=client.embed_manager.get_embed(extras),
     )
 
-@tree.command(name=locale_str('get_users_by_thread'), description='指定したスレッドにタグ付けされているユーザーを取得します')
+
+@tree.command(
+    name=locale_str("get_users_by_thread"),
+    description="指定したスレッドにタグ付けされているユーザーを取得します",
+)
 async def get_users_by_thread(interaction: discord.Interaction):
-    extras = {'get_users_by_thread': Tag(client=client)}
+    extras = {"get_users_by_thread": Tag(client=client)}
     await interaction.response.send_message(
         ephemeral=True,
         view=GetUsersView1(extras=extras),
-        embed=client.embed_manager.get_embed(extras)
+        embed=client.embed_manager.get_embed(extras),
     )
 
-@tree.command(name=locale_str('get_all'), description='全てのタグを取得します')
+
+@tree.command(name=locale_str("get_all"), description="全てのタグを取得します")
 async def get_all(interaction: discord.Interaction):
     result = []
     for user in client.tag_manager.get_all_users():
-        
-        user_obj = client.get_user(user['user_id'])
+        user_obj = client.get_user(user["user_id"])
         if not user_obj:
             continue
-        
+
         threads = client.tag_manager.get_threads_by_user([user_obj])
 
         result.append({user_obj: threads})
-    
-    extras = {'get_all': Tag(client=client), 'result': {'get_all': result, 'interaction': interaction}}
+
+    extras = {
+        "get_all": Tag(client=client),
+        "result": {"get_all": result, "interaction": interaction},
+    }
     await interaction.response.send_message(
-        ephemeral=True,
-        embed=client.embed_manager.get_embed(extras)
+        ephemeral=True, embed=client.embed_manager.get_embed(extras)
     )
 
-@tree.command(name=locale_str('toggle_notification'), description='通知のON/OFFを切り替えます')
+
+@tree.command(
+    name=locale_str("toggle_notification"), description="通知のON/OFFを切り替えます"
+)
 async def toggle_notification(interaction: discord.Interaction):
     current_notification = client.tag_manager.toggle_notification(interaction.user)
-    extras = {'toggle_notification': Tag(client=client), 'current_notification': current_notification}
+    extras = {
+        "toggle_notification": Tag(client=client),
+        "current_notification": current_notification,
+    }
     await interaction.response.send_message(
-        ephemeral=True,
-        embed=client.embed_manager.get_embed(extras)
+        ephemeral=True, embed=client.embed_manager.get_embed(extras)
     )
 
-@tree.command(name=locale_str('add_task'), description='タスクを追加します')
+
+@tree.command(name=locale_str("add_task"), description="タスクを追加します")
 async def add_task(interaction: discord.Interaction):
-    extras = {'add_task': Task(client=client, user=interaction.user)}
+    extras = {"add_task": Task(client=client, user=interaction.user)}
     await interaction.response.send_modal(TaskContentInputModal(extras=extras))
 
-@tree.command(name=locale_str('delete_task'), description='タスクを削除します')
+
+@tree.command(name=locale_str("delete_task"), description="タスクを削除します")
 async def delete_task(interaction: discord.Interaction):
-    extras = {'delete_task': Task(client=client, user=interaction.user)}
-    tasks = client.tag_manager.get_tasks(extras['delete_task'])
-    del tasks['used_ids']
-    
+    extras = {"delete_task": Task(client=client, user=interaction.user)}
+    tasks = client.tag_manager.get_tasks(extras["delete_task"])
+    del tasks["used_ids"]
+
     page = (len(tasks) + 24) // 25
-    
-    extras['result'] = {'delete_task': tasks, 'interaction': interaction, 'page': page, 'current_page': 1}
-    
+
+    extras["result"] = {
+        "delete_task": tasks,
+        "interaction": interaction,
+        "page": page,
+        "current_page": 1,
+    }
+
     view = DeleteTaskViewNext if page > 1 else DeleteTaskViewOnly
-    
+
     await interaction.response.send_message(
         ephemeral=True,
         view=view(extras=extras),
-        embed=client.embed_manager.get_embed(extras)
+        embed=client.embed_manager.get_embed(extras),
     )
 
-@tree.command(name=locale_str('get_tasks'), description='タスクを取得します')
+
+@tree.command(name=locale_str("get_tasks"), description="タスクを取得します")
 async def get_tasks(interaction: discord.Interaction):
-    extras = {'get_tasks': Task(client=client, user=interaction.user)}
-    tasks = client.tag_manager.get_tasks(extras['get_tasks'])
-    del tasks['used_ids']
-    
-    extras['result'] = {'get_tasks': tasks, 'interaction': interaction}
-    
+    extras = {"get_tasks": Task(client=client, user=interaction.user)}
+    tasks = client.tag_manager.get_tasks(extras["get_tasks"])
+    del tasks["used_ids"]
+
+    extras["result"] = {"get_tasks": tasks, "interaction": interaction}
+
     # get_taskだけは全員に表示
     await interaction.response.send_message(
         embed=client.embed_manager.get_embed(extras)
     )
 
-@tree.command(name=locale_str('help'), description='ヘルプを表示します')
+
+@tree.command(name=locale_str("help"), description="ヘルプを表示します")
 async def help(interaction: discord.Interaction):
     all_commmands = tree.walk_commands()
 
     await interaction.response.send_message(
-        ephemeral=True,
-        embed=client.embed_manager.get_embed({'result': all_commmands})
+        ephemeral=True, embed=client.embed_manager.get_embed({"result": all_commmands})
     )
 
-@tree.command(name=locale_str('invite'), description='招待リンクを表示します')
+
+@tree.command(name=locale_str("invite"), description="招待リンクを表示します")
 async def invite(interaction: discord.Interaction):
-    embed = discord.Embed(title='招待リンク')
+    embed = discord.Embed(title="招待リンク")
     await interaction.response.send_message(ephemeral=True, embed=embed)
 
-@tree.command(name=locale_str('set_notify_channel'), description='通知を送るチャンネルを設定します')
+
+@tree.command(
+    name=locale_str("set_notify_channel"),
+    description="通知を送るチャンネルを設定します",
+)
 async def set_notify_channel(interaction: discord.Interaction):
-    extras = {'notify': Tag(client=client, guild_id=interaction.guild_id)}
+    extras = {"notify": Tag(client=client, guild_id=interaction.guild_id)}
     await interaction.response.send_message(
         ephemeral=True,
         view=NotifyView1(extras=extras),
-        embed=client.embed_manager.get_embed(extras)
+        embed=client.embed_manager.get_embed(extras),
     )
 
-@tree.command(name=locale_str('delete_notify_channel'), description='通知を送るチャンネルを削除します')
+
+@tree.command(
+    name=locale_str("delete_notify_channel"),
+    description="通知を送るチャンネルを削除します",
+)
 async def delete_notify_channel(interaction: discord.Interaction):
     client.tag_manager.delete_notify_channel(interaction.guild)
-    embed = discord.Embed(title='削除完了', description='通知チャンネルを削除しました。\n通知を受け取るには再度設定を行ってください。')
+    embed = discord.Embed(
+        title="削除完了",
+        description="通知チャンネルを削除しました。\n通知を受け取るには再度設定を行ってください。",
+    )
     await interaction.response.send_message(ephemeral=True, embed=embed)
 
-if __name__ == '__main__':
-    client.run(getenv('DISCORD_BOT_TOKEN_MT'))
+
+if __name__ == "__main__":
+    client.run(getenv("DISCORD_BOT_TOKEN_MT"))
