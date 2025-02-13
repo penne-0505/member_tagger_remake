@@ -49,7 +49,7 @@ class EmbedManager:
                         thread = thread_data["thread"]  # discord.Thread
                         deadline = thread_data["deadline"]  # datetime.datetime
                         formatted_result += (
-                            f'  - {thread.mention}: {deadline.strftime("%Y/%m/%d")}\n'
+                            f"  - {thread.mention}: {deadline.strftime('%Y/%m/%d')}\n"
                         )
 
                 if not formatted_result:
@@ -93,7 +93,7 @@ class EmbedManager:
                             continue
                         deadline = thread_data[1]  # datetime.datetime
                         formatted_result += (
-                            f'  - {thread.mention}: {deadline.strftime("%Y/%m/%d")}\n'
+                            f"  - {thread.mention}: {deadline.strftime('%Y/%m/%d')}\n"
                         )
 
                     if (
@@ -134,7 +134,7 @@ class EmbedManager:
                     thread = guild.get_thread(int(tag.thread_id))
                     deadline = tag.deadline
                     formatted_result += (
-                        f'- {thread.mention} ({deadline.strftime("%Y/%m/%d")})\n'
+                        f"- {thread.mention} ({deadline.strftime('%Y/%m/%d')})\n"
                     )
 
         return formatted_result

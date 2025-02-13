@@ -2,12 +2,11 @@
 
 import datetime
 import os
-import requests
 
 import discord
 import firebase_admin
-from firebase_admin import credentials
-from firebase_admin import firestore
+import requests
+from firebase_admin import credentials, firestore
 
 import utils
 from utils import Tag, Task
@@ -22,9 +21,10 @@ class DBManager(metaclass=utils.Singleton):
 
     def set(self, collection: str, document: str | None, data: dict) -> bool:
         try:
-            self.db.collection(collection).document(document).set(
-                data
-            ) if document else self.db.collection(collection).add(data)
+            if document:
+                self.db.collection(collection).document(document).set(data)
+            else:
+                self.db.collection(collection).add(data)
             return True
         except Exception as e:
             print(e)
@@ -70,12 +70,13 @@ class DBManager(metaclass=utils.Singleton):
         timeout_sec: int | float = None,
     ) -> bool:
         try:
-            # コレクションにドキュメントを追加
-            self.db.collection(collection).add(
-                document_data, document_id
-            ) if not timeout_sec else self.db.collection(collection).add(
-                document_data, document_id, timeout_sec
-            )
+            if not timeout_sec:
+                self.db.collection(collection).add(document_data, document_id)
+            else:
+                self.db.collection(collection).add(
+                    document_data, document_id, timeout_sec
+                )
+
             return True
         except Exception as e:
             print(e)
@@ -101,47 +102,53 @@ class TagManager:
     def add_tag(self, tag: Tag):
         for user in tag.users:
             user_id = user.id
-            user_data = self.db_manager.get("users", str(user_id))
+            fetched_user = self.db_manager.get("users", str(user_id))
             # 存在しないキーの配下に新しいキーを追加するとエラーが発生するため、キーが存在しない場合は追加する
-            if str(tag.guild_id) not in user_data["tags"]:
-                user_data["tags"][str(tag.guild_id)] = {}
-            if str(tag.thread_id) not in user_data["tags"][str(tag.guild_id)]:
-                user_data["tags"][str(tag.guild_id)][str(tag.thread_id)] = tag.deadline
+            if str(tag.guild_id) not in fetched_user["tags"]:
+                fetched_user["tags"][str(tag.guild_id)] = {}
+            if str(tag.thread_id) not in fetched_user["tags"][str(tag.guild_id)]:
+                fetched_user["tags"][str(tag.guild_id)][str(tag.thread_id)] = (
+                    tag.deadline
+                )
             else:
-                user_data["tags"][str(tag.guild_id)][str(tag.thread_id)] = tag.deadline
-            self.db_manager.update("users", str(user_id), user_data)
+                fetched_user["tags"][str(tag.guild_id)][str(tag.thread_id)] = (
+                    tag.deadline
+                )
+            self.db_manager.update("users", str(user_id), fetched_user)
 
     def remove_tag(self, tag: Tag):
         for user in tag.users:
             user_id = user.id
-            user_data = self.db_manager.get("users", str(user_id))
-            user_data["tags"][str(tag.guild_id)].pop(str(tag.thread_id))
+            fetched_user = self.db_manager.get("users", str(user_id))
+            fetched_user["tags"][str(tag.guild_id)].pop(str(tag.thread_id))
             # もし、guild_id配下にthread_idが存在しなくなった場合は、guild_idを削除
-            if not user_data["tags"][str(tag.guild_id)]:
-                user_data["tags"].pop(str(tag.guild_id))
+            if not fetched_user["tags"][str(tag.guild_id)]:
+                fetched_user["tags"].pop(str(tag.guild_id))
 
-            self.db_manager.update("users", str(user_id), user_data)
+            self.db_manager.update("users", str(user_id), fetched_user)
 
     def get_tags(self, user: discord.User):
-        user_data = self.db_manager.get("users", str(user.id))
-        return user_data["tags"]
+        fetched_user = self.db_manager.get("users", str(user.id))
+        return fetched_user["tags"]
 
     def update_tag(self, tag: Tag):
         for user in tag.users:
             user_id = user.id
-            user_data = self.db_manager.get("users", str(user_id))
-            user_data["tags"][str(tag.guild_id)][str(tag.thread_id)] = tag.deadline
-            self.db_manager.update("users", str(user_id), user_data)
+            fetched_user = self.db_manager.get("users", str(user_id))
+            fetched_user["tags"][str(tag.guild_id)][str(tag.thread_id)] = tag.deadline
+            self.db_manager.update("users", str(user_id), fetched_user)
 
     def get_users_by_thread(self, tag: Tag):
+        guild_id = tag.guild_id
         thread_id = tag.thread_id
         user_ids = []
-        user_data = self.db_manager.get("users")
+        fetched_user = self.db_manager.get("users")
         # ユーザーごとに、ギルドIDとスレッドIDが一致するかを確認し、一致する場合はユーザーIDをリストに追加
-        for user in user_data:
+
+        for user in fetched_user:
             if (
-                str(tag.guild_id) in user["tags"]
-                and str(thread_id) in user["tags"][str(tag.guild_id)]
+                str(guild_id) in user["tags"]
+                and str(thread_id) in user["tags"][str(guild_id)]
             ):
                 user_ids.append(tag.client.get_user(user["user_id"]))
 
@@ -152,11 +159,11 @@ class TagManager:
     ) -> dict[str, list[tuple[str, datetime.datetime]]]:
         for user in users:
             user_id = user.id
-            user_data = self.db_manager.get("users", str(user_id))
+            fetched_user = self.db_manager.get("users", str(user_id))
             threads = {}
-            for guild_id in user_data["tags"].keys():
+            for guild_id in fetched_user["tags"].keys():
                 guild_threads = []
-                for thread_id in user_data["tags"][guild_id].items():
+                for thread_id in fetched_user["tags"][guild_id].items():
                     guild_threads.append(thread_id)
                 threads[guild_id] = guild_threads
         return threads
@@ -212,48 +219,48 @@ class TagManager:
     def delete_task(self, task: Task):
         user = task.user
         task_id = task.task_id
-        user_data = self.db_manager.get("users", str(user.id))
-        user_data["tasks"].pop(task_id)
-        user_data["tasks"]["used_ids"].remove(task_id)
-        self.db_manager.update("users", str(user.id), user_data)
+        fetched_user = self.db_manager.get("users", str(user.id))
+        fetched_user["tasks"].pop(task_id)
+        fetched_user["tasks"]["used_ids"].remove(task_id)
+        self.db_manager.update("users", str(user.id), fetched_user)
 
     def get_tasks(self, task: Task):
         user = task.user
-        user_data = self.db_manager.get("users", str(user.id))
-        return user_data["tasks"]
+        fetched_user = self.db_manager.get("users", str(user.id))
+        return fetched_user["tasks"]
 
     def update_task(self, task: Task):
         user = task.user
         task_id = task.task_id
         content = task.content
-        user_data = self.db_manager.get("users", str(user.id))
-        user_data["tasks"][task_id] = content
-        self.db_manager.update("users", str(user.id), user_data)
+        fetched_user = self.db_manager.get("users", str(user.id))
+        fetched_user["tasks"][task_id] = content
+        self.db_manager.update("users", str(user.id), fetched_user)
 
     def toggle_notification(self, user: discord.User) -> bool:
-        user_data = self.db_manager.get("users", str(user.id))
-        user_data["notification"] = not user_data["notification"]
-        self.db_manager.update("users", str(user.id), user_data)
-        return user_data["notification"]
+        fetched_user = self.db_manager.get("users", str(user.id))
+        fetched_user["notification"] = not fetched_user["notification"]
+        self.db_manager.update("users", str(user.id), fetched_user)
+        return fetched_user["notification"]
 
     def add_notify_channel(
         self, channel=dict[discord.Guild, discord.TextChannel | discord.Thread | None]
     ):
         use_set = False
-        current_data = self.db_manager.get("notify", "notify_channels")
+        fetched_user = self.db_manager.get("notify", "notify_channels")
 
-        if not current_data:
+        if not fetched_user:
             use_set = True
-            current_data = {}
+            fetched_user = {}
 
         for guild, ch in channel.items():
-            current_data[str(guild.id)] = ch.id if ch else None
+            fetched_user[str(guild.id)] = ch.id if ch else None
 
         # 存在しないキーのupdateは使用できないため、そのような場合はsetを使用
         if use_set:
-            self.db_manager.set("notify", "notify_channels", current_data)
+            self.db_manager.set("notify", "notify_channels", fetched_user)
         else:
-            self.db_manager.update("notify", "notify_channels", current_data)
+            self.db_manager.update("notify", "notify_channels", fetched_user)
 
     def get_notify_channel(
         self, guild_id: str
@@ -263,9 +270,9 @@ class TagManager:
         return self.db_manager.get("notify", "notify_channels")[guild_id]
 
     def delete_notify_channel(self, guild: discord.Guild):
-        current_data = self.db_manager.get("notify", "notify_channels")
-        current_data.pop(str(guild.id))
-        self.db_manager.update("notify", "notify_channels", current_data)
+        fetched_user = self.db_manager.get("notify", "notify_channels")
+        fetched_user.pop(str(guild.id))
+        self.db_manager.update("notify", "notify_channels", fetched_user)
 
 
 if __name__ == "__main__":
